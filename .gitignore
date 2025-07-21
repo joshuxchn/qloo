@@ -1,1 +1,4 @@
 .env
+CLAUDE.md
+.claude
+test_kroger.py
