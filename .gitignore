@@ -1,4 +1,6 @@
 .env
+__pycache__/
+*.pyc
 CLAUDE.md
 .claude
 test_kroger.py
