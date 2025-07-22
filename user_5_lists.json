@@ -1,0 +1,15 @@
+[
+    {
+        "list_id": 5,
+        "list_name": "Weekly List",
+        "created_at": "2025-07-21T16:49:44.276109-07:00",
+        "items": [
+            {
+                "product_upc": "0004133100040",
+                "name": "Vitamin D Milk",
+                "brand": "Kroger",
+                "quantity": 5
+            }
+        ]
+    }
+]

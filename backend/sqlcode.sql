@@ -40,3 +40,13 @@ CREATE TABLE store_products (
     FOREIGN KEY (store_id) REFERENCES stores(location_id),
     FOREIGN KEY (product_upc) REFERENCES products(upc)
 );
+
+CREATE TABLE GroceryListItems (
+    list_id INT NOT NULL,
+    product_upc VARCHAR(14) NOT NULL,
+    quantity INT DEFAULT 1,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (list_id, product_upc), -- Prevents adding the same item twice
+    FOREIGN KEY (list_id) REFERENCES GroceryLists(list_id) ON DELETE CASCADE,
+    FOREIGN KEY (product_upc) REFERENCES products(upc) ON DELETE CASCADE
+);
