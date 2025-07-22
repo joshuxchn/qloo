@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 DB_PARAMS = {
     "dbname": "grocery_app",
-    "user": "samavramov",
+    "user": "joshuachen",
     "password": "",
     "host": "localhost",
     "port": "5432"

@@ -44,26 +44,26 @@ class KrogerAPI:
             if response.status_code == 200:
                 token_info = response.json()
                 self._service_token = token_info.get('access_token')
-            else:
-                print(f"Failed to get service token: {response.status_code}")
-        except Exception as e:
-            print(f"Error getting service token: {e}")
+        except Exception:
+            pass
     
-    def productSearch(self, search_term="milk", limit=3, zip_code=None):
+    def productSearch(self, search_term, limit=3, zip_code=None):
         """
-        Search for products using Kroger API and print detailed product information.
+        Search for products using Kroger API and return structured product information.
         
         Args:
             search_term (str): Product to search for
             limit (int): Maximum number of products to return
             zip_code (str): ZIP code for store search, uses env variable if not provided
+            
+        Returns:
+            dict: Contains store info and product data, or None if failed
         """
         if not zip_code:
             zip_code = self.zip_code
         
         if not self._service_token:
-            print("No service token available")
-            return
+            return None
         
         # Find stores
         locations_url = f"{self.base_url}/v1/locations"
@@ -78,13 +78,10 @@ class KrogerAPI:
             locs_response = requests.get(locations_url, headers=headers, params=params)
             locs = locs_response.json()
             
-            print(f"Found {len(locs.get('data', []))} stores")
-            
             if locs.get("data") and len(locs["data"]) > 0:
                 store = locs["data"][0]
                 location_id = store["locationId"]
                 store_name = store.get("name", "Unknown Store")
-                print(f"Using store: {store_name} (ID: {location_id})")
                 
                 # Search products
                 products_url = f"{self.base_url}/v1/products"
@@ -97,65 +94,75 @@ class KrogerAPI:
                 products_response = requests.get(products_url, headers=headers, params=product_params)
                 products = products_response.json()
                 
-                print(f"Found {len(products.get('data', []))} products:")
-                print("=" * 80)
+                # Structure the return data
+                result = {
+                    'store': {
+                        'location_id': location_id,
+                        'name': store_name,
+                        'address': store.get('address', {}).get('addressLine1', ''),
+                        'zip_code': store.get('address', {}).get('zipCode', '')
+                    },
+                    'products': [],
+                    'search_term': search_term,
+                    'zip_code': zip_code
+                }
                 
                 for i, product in enumerate(products.get("data", []), 1):
-                    print(f"\nPRODUCT {i}")
-                    print("-" * 40)
-                    
                     # Basic product info
                     name = product.get("description", "Unknown Product")
                     brand = product.get("brand", "Unknown Brand")
                     upc = product.get("upc", "N/A")
                     product_id = product.get("productId", "N/A")
                     
-                    print(f"Name: {name}")
-                    print(f"Brand: {brand}")
-                    print(f"UPC: {upc}")
-                    print(f"Product ID: {product_id}")
-                    
                     # Get item details
                     items = product.get("items", [])
+                    product_data = {
+                        'upc': upc,
+                        'name': name,
+                        'brand': brand,
+                        'kroger_product_id': product_id,
+                        'regular_price': None,
+                        'promo_price': None,
+                        'stock_level': 'UNKNOWN',
+                        'is_available_instore': False,
+                        'size': None,
+                        'fulfillment': {}
+                    }
+                    
                     if items:
                         item = items[0]
                         
                         # PRICING
-                        print(f"\nPRICING:")
                         price_info = item.get("price", {})
                         if price_info:
                             regular_price = price_info.get("regular")
                             promo_price = price_info.get("promo")
-                            print(f"  Regular Price: ${regular_price}" if regular_price else "  Regular Price: N/A")
-                            print(f"  Promo Price: ${promo_price}" if promo_price else "  Promo Price: None")
+                            product_data['regular_price'] = regular_price
+                            product_data['promo_price'] = promo_price
                         
                         # FULFILLMENT
-                        print(f"\nFULFILLMENT:")
                         fulfillment = item.get("fulfillment", {})
-                        print(f"  In-Store: {'Yes' if fulfillment.get('instore') else 'No'}")
-                        print(f"  Ship to Home: {'Yes' if fulfillment.get('shiptohome') else 'No'}")
-                        print(f"  Delivery: {'Yes' if fulfillment.get('delivery') else 'No'}")
-                        print(f"  Curbside: {'Yes' if fulfillment.get('curbside') else 'No'}")
+                        product_data['fulfillment'] = fulfillment
+                        product_data['is_available_instore'] = fulfillment.get('instore', False)
                         
                         # INVENTORY
                         stock_level = item.get("inventory", {}).get("stockLevel")
                         if stock_level:
-                            print(f"\nINVENTORY:")
-                            print(f"  Stock Level: {stock_level}")
-                        else:
-                            print(f"\nINVENTORY: Not available")
+                            product_data['stock_level'] = stock_level
                         
                         # SIZE
                         size = item.get("size", "N/A")
                         if size != "N/A":
-                            print(f"\nSIZE: {size}")
+                            product_data['size'] = size
                     
-                    print("-" * 40)
-            else:
-                print("No stores found in the area")
+                    result['products'].append(product_data)
                 
-        except Exception as e:
-            print(f"Error during product search: {e}")
+                return result
+            else:
+                return None
+                
+        except Exception:
+            return None
     
     def getAuthorizationUrl(self, scopes="cart.basic:write profile.compact", state="auth_state"):
         """
@@ -178,13 +185,6 @@ class KrogerAPI:
         
         auth_url = f"{self.base_url}/v1/connect/oauth2/authorize"
         full_url = f"{auth_url}?{urlencode(params)}"
-        
-        print("CART AUTHORIZATION REQUIRED")
-        print("=" * 50)
-        print("To use cart functionality, visit this URL in your browser:")
-        print(f"\n{full_url}\n")
-        print("After authorization, copy the 'code' parameter from the redirect URL")
-        print("=" * 50)
         
         return full_url
     
@@ -225,16 +225,11 @@ class KrogerAPI:
                 with open(self.token_file, 'w') as f:
                     json.dump(token_info, f, indent=2)
                 
-                print("SUCCESS: Authorization complete!")
-                print("Tokens saved. You can now use cart functions.")
                 return token_info
             else:
-                print(f"Token exchange failed: {response.status_code}")
-                print(f"Response: {response.text}")
                 return None
                 
-        except Exception as e:
-            print(f"Error exchanging authorization code: {e}")
+        except Exception:
             return None
     
     def _refresh_token(self):
@@ -252,7 +247,6 @@ class KrogerAPI:
         
         refresh_token = token_info.get('refresh_token')
         if not refresh_token:
-            print("No refresh token available")
             return False
         
         token_url = f"{self.base_url}/v1/connect/oauth2/token"
@@ -285,14 +279,11 @@ class KrogerAPI:
                 with open(self.token_file, 'w') as f:
                     json.dump(new_token_info, f, indent=2)
                 
-                print("Token refreshed successfully")
                 return True
             else:
-                print(f"Token refresh failed: {response.status_code}")
                 return False
                 
-        except Exception as e:
-            print(f"Error refreshing token: {e}")
+        except Exception:
             return False
     
     def _get_valid_token(self):
@@ -316,7 +307,6 @@ class KrogerAPI:
         
         # Check if token is expired (with 5 minute buffer)
         if current_time >= (expires_at - 300):
-            print("Access token expired, refreshing...")
             if self._refresh_token():
                 # Re-read the refreshed token
                 try:
@@ -326,7 +316,6 @@ class KrogerAPI:
                 except:
                     return None
             else:
-                print("Token refresh failed. Re-authorization required.")
                 return None
         
         return access_token
@@ -346,7 +335,6 @@ class KrogerAPI:
         # Get valid access token (automatically refreshes if needed)
         access_token = self._get_valid_token()
         if not access_token:
-            print("No valid access token. Complete authorization first using getAuthorizationUrl()")
             return False
         
         cart_url = f"{self.base_url}/v1/cart/add"
@@ -370,21 +358,11 @@ class KrogerAPI:
             response = requests.put(cart_url, headers=headers, json=payload)
             
             if response.status_code == 204:
-                print(f"SUCCESS: Added {quantity}x item (UPC: {upc}) to cart for {modality}")
-                print("Check your Kroger app or website to verify.")
                 return True
             else:
-                print(f"Failed to add item: {response.status_code}")
-                if response.status_code == 401:
-                    print("Authorization expired. Get new authorization code.")
-                print(f"Response: {response.text}")
                 return False
                 
-        except Exception as e:
-            print(f"Error adding to cart: {e}")
+        except Exception:
             return False
 
-# Example usage
-if __name__ == "__main__":
-    kroger = KrogerAPI()
-    kroger.productSearch("milk", 3)
+# Example usage moved to test_kroger.py
