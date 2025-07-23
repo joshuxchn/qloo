@@ -24,63 +24,39 @@ def test_product_search():
     print("=" * 60)
     
     # Use the detailed search function with printing
-    detailed_product_search("milk", 3)
+    detailed_product_search("milk", 1)
 
-def detailed_product_search(search_term="milk", limit=3, zip_code=None):
+def detailed_product_search(search_term="milk", limit=1, zip_code=None):
     """
-    Search for products and print detailed information (for testing).
-    This function provides the printing functionality that was removed from kroger.py
+    Search for products and return Product objects, then print as JSON.
     """
-    results = kroger.productSearch(search_term, limit, zip_code)
+    import json
     
-    if not results:
+    products = kroger.productSearch(search_term, limit, zip_code)
+    
+    if not products:
         print("No search results available")
-        return
+        return []
     
-    store_info = results['store']
-    products = results['products']
-    
-    print(f"Found store: {store_info['name']} (ID: {store_info['location_id']})")
-    print(f"Found {len(products)} products:")
+    print(f"Found {len(products)} product(s):")
     print("=" * 80)
     
+    # Convert products to dictionaries and print as JSON
+    product_dicts = []
     for i, product in enumerate(products, 1):
-        print(f"\nPRODUCT {i}")
+        print(f"\nPRODUCT {i} - JSON FORMAT:")
         print("-" * 40)
-        print(f"Name: {product['name']}")
-        print(f"Brand: {product['brand']}")
-        print(f"UPC: {product['upc']}")
-        print(f"Product ID: {product['kroger_product_id']}")
         
-        # PRICING
-        print(f"\nPRICING:")
-        if product['regular_price']:
-            print(f"  Regular Price: ${product['regular_price']}")
-        else:
-            print("  Regular Price: N/A")
-            
-        if product['promo_price']:
-            print(f"  Promo Price: ${product['promo_price']}")
-        else:
-            print("  Promo Price: None")
+        # Convert to dictionary
+        product_dict = product.to_dict()
+        product_dicts.append(product_dict)
         
-        # FULFILLMENT
-        print(f"\nFULFILLMENT:")
-        fulfillment = product['fulfillment']
-        print(f"  In-Store: {'Yes' if fulfillment.get('instore') else 'No'}")
-        print(f"  Ship to Home: {'Yes' if fulfillment.get('shiptohome') else 'No'}")
-        print(f"  Delivery: {'Yes' if fulfillment.get('delivery') else 'No'}")
-        print(f"  Curbside: {'Yes' if fulfillment.get('curbside') else 'No'}")
-        
-        # INVENTORY
-        print(f"\nINVENTORY:")
-        print(f"  Stock Level: {product['stock_level']}")
-        
-        # SIZE
-        if product['size']:
-            print(f"\nSIZE: {product['size']}")
-        
+        # Print as formatted JSON
+        print(json.dumps(product_dict, indent=2))
         print("-" * 40)
+    
+    # Return the Product objects for further use
+    return products
 
 def test_cart_authorization():
     """
@@ -301,7 +277,8 @@ if __name__ == "__main__":
         
         # Run a quick demo
         print("\n🔄 Running quick cart test...")
-        quick_cart_test()
+        # quick_cart_test()
+        detailed_product_search()
         
     else:
         print("\n⚙️  SETUP REQUIRED")

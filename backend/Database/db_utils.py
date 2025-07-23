@@ -6,7 +6,7 @@ from list import GroceryList
 from product import Product
 from user import User
 DB_NAME = "grocery_app"
-DB_USER = "samavramov" # Updated as requested
+DB_USER = "joshuachen" # Current user
 DB_PASSWORD = "" # Leave empty if you don't have a password set for your user
 DB_HOST = "localhost"
 DB_PORT = "5432"
@@ -232,7 +232,7 @@ def get_grocery_list_details(list_id):
                     price=item_data['price'],
                     promo_price=item_data['promo_price'],
                     fufillment_type=item_data['fufillment_type'],
-                    aisle=item_data['aisle'],
+                    brand=item_data['aisle'],  # Using aisle column for brand data
                     inventory=item_data['inventory'],
                     size=item_data['size'],
                     last_updated=item_data['last_updated'],
@@ -326,7 +326,7 @@ def add_grocery_list_to_db(grocery_list_obj):
                     product.price,
                     product.promo_price,
                     product.fufillment_type,
-                    product.aisle,
+                    product.brand,  # Using brand field for aisle column
                     product.inventory,
                     product.size,
                     product.last_updated,

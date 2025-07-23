@@ -1,226 +1,292 @@
 #!/usr/bin/env python3
 """
-Main application for Qloo grocery optimization platform.
-Integrates Kroger API product search with PostgreSQL database storage.
+Main application entry point for the grocery optimization platform.
+Creates a user, grocery list, and populates it with Kroger products.
 """
 
-import os
-from datetime import datetime, timezone
-from dotenv import load_dotenv
-
+import uuid
+import psycopg2
 from kroger import KrogerAPI
-from backend.database.databaseInteractions import Database
 
-# Load environment variables
-load_dotenv("../.env")
+# Database connection parameters
+DB_NAME = "grocery_app"
+DB_USER = "joshuachen"
+DB_PASSWORD = ""
+DB_HOST = "localhost"
+DB_PORT = "5432"
 
-# Database configuration
-DB_PARAMS = {
-    "dbname": "grocery_app",
-    "user": os.getenv("DB_USER", "joshuachen"),
-    "password": os.getenv("DB_PASSWORD", ""),
-    "host": os.getenv("DB_HOST", "localhost"),
-    "port": os.getenv("DB_PORT", "5432")
-}
-
-class GroceryService:
-    """
-    Service class that integrates Kroger API with database operations.
-    Handles product search, store management, and data persistence.
-    """
-    
-    def __init__(self):
-        """Initialize Kroger API and database connection parameters."""
-        self.kroger_api = KrogerAPI()
-        self.db_params = DB_PARAMS
-    
-    def search_and_store_products(self, search_term, limit=5, zip_code=None, print_results=True):
-        """
-        Search for products using Kroger API and store results in database.
-        
-        Args:
-            search_term (str): Product search query
-            limit (int): Maximum number of products to return
-            zip_code (str): ZIP code for store location
-            print_results (bool): Whether to print search results
-            
-        Returns:
-            dict: Search results with database storage status
-        """
-        if print_results:
-            print(f"\nSearching for '{search_term}' (limit: {limit})")
-            print("=" * 60)
-        
-        # Search products using Kroger API
-        search_results = self.kroger_api.productSearch(
-            search_term=search_term,
-            limit=limit,
-            zip_code=zip_code
+def get_db_connection():
+    """Establishes a connection to the PostgreSQL database."""
+    try:
+        conn = psycopg2.connect(
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            host=DB_HOST,
+            port=DB_PORT
         )
+        return conn
+    except psycopg2.Error as e:
+        print(f"Error connecting to database: {e}")
+        return None
+
+def create_user_in_db():
+    """Create a user directly in the database using the existing schema."""
+    conn = get_db_connection()
+    if conn is None:
+        return None
+    
+    try:
+        with conn.cursor() as cur:
+            # Insert user and get the auto-generated ID
+            unique_suffix = uuid.uuid4().hex[:6]
+            cur.execute("""
+                INSERT INTO users (username, email, password_hash)
+                VALUES (%s, %s, %s)
+                RETURNING user_id;
+            """, (
+                f"demo_user_{unique_suffix}",
+                f"demo_{unique_suffix}@grocery-demo.com", 
+                "demo_password_hash"
+            ))
+            
+            user_id = cur.fetchone()[0]
+            
+        conn.commit()
+        print(f"   ✅ Created user with ID: {user_id}")
+        return user_id
         
-        if not search_results:
-            return {"success": False, "message": "No search results from Kroger API"}
+    except Exception as e:
+        print(f"   ❌ Error creating user: {e}")
+        return None
+    finally:
+        conn.close()
+
+def create_grocery_list_in_db(user_id):
+    """Create a grocery list directly in the database."""
+    conn = get_db_connection()
+    if conn is None:
+        return None
+    
+    try:
+        with conn.cursor() as cur:
+            # Insert grocery list and get the auto-generated ID
+            cur.execute("""
+                INSERT INTO grocerylists (user_id, list_name)
+                VALUES (%s, %s)
+                RETURNING list_id;
+            """, (user_id, f"Demo Grocery List"))
+            
+            list_id = cur.fetchone()[0]
+            
+        conn.commit()
+        print(f"   ✅ Created grocery list with ID: {list_id}")
+        return list_id
         
-        # Store results in database
+    except Exception as e:
+        print(f"   ❌ Error creating grocery list: {e}")
+        return None
+    finally:
+        conn.close()
+
+def add_product_to_db(product):
+    """Add a product to the products table if it doesn't exist."""
+    conn = get_db_connection()
+    if conn is None:
+        return False
+    
+    try:
+        with conn.cursor() as cur:
+            # Insert product (ignore if already exists)
+            cur.execute("""
+                INSERT INTO products (upc, name, brand)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (upc) DO NOTHING;
+            """, (product.upc, product.name, product.brand))
+            
+        conn.commit()
+        return True
+        
+    except Exception as e:
+        print(f"   ⚠️  Error adding product {product.upc}: {e}")
+        return False
+    finally:
+        conn.close()
+
+def add_product_to_list(list_id, product, quantity=1):
+    """Add a product to a grocery list."""
+    conn = get_db_connection()
+    if conn is None:
+        return False
+    
+    try:
+        with conn.cursor() as cur:
+            # Insert into grocery list items
+            cur.execute("""
+                INSERT INTO grocerylistitems (list_id, product_upc, quantity)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (list_id, product_upc) DO UPDATE SET
+                    quantity = grocerylistitems.quantity + EXCLUDED.quantity;
+            """, (list_id, product.upc, quantity))
+            
+        conn.commit()
+        return True
+        
+    except Exception as e:
+        print(f"   ⚠️  Error adding product to list: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_list_details(list_id):
+    """Get details of a grocery list with products."""
+    conn = get_db_connection()
+    if conn is None:
+        return None
+    
+    try:
+        with conn.cursor() as cur:
+            # Get list info
+            cur.execute("""
+                SELECT gl.list_id, gl.user_id, gl.list_name, gl.created_at
+                FROM grocerylists gl
+                WHERE gl.list_id = %s;
+            """, (list_id,))
+            
+            list_data = cur.fetchone()
+            if not list_data:
+                return None
+                
+            # Get products in the list
+            cur.execute("""
+                SELECT p.upc, p.name, p.brand, gli.quantity
+                FROM grocerylistitems gli
+                JOIN products p ON gli.product_upc = p.upc
+                WHERE gli.list_id = %s;
+            """, (list_id,))
+            
+            products = cur.fetchall()
+            
+        return {
+            'list_id': list_data[0],
+            'user_id': list_data[1], 
+            'list_name': list_data[2],
+            'created_at': list_data[3],
+            'products': products
+        }
+        
+    except Exception as e:
+        print(f"Error getting list details: {e}")
+        return None
+    finally:
+        conn.close()
+
+def fetch_kroger_products(num_products=5):
+    """Fetch products from Kroger API using different search terms."""
+    kroger_api = KrogerAPI()
+    
+    # Different search terms to get variety
+    search_terms = ["milk", "bread", "apples", "chicken", "rice", "eggs", "cheese", "bananas"]
+    
+    products = []
+    
+    print(f"Fetching {num_products} products from Kroger API...")
+    
+    for i in range(num_products):
+        search_term = search_terms[i % len(search_terms)]
+        print(f"  Searching for: {search_term}")
+        
         try:
-            with Database(self.db_params) as db:
-                # Create tables if they don't exist
-                db.create_tables()
-                
-                # Store store information
-                store_info = search_results['store']
-                db.add_or_update_store(
-                    location_id=store_info['location_id'],
-                    name=store_info['name'],
-                    address=store_info['address'],
-                    zip_code=store_info['zip_code']
-                )
-                
-                stored_products = []
-                
-                # Store each product and its pricing information
-                for product in search_results['products']:
-                    if product['upc'] != 'N/A':  # Only store products with valid UPC
-                        # Store product information
-                        db.add_or_update_product(
-                            upc=product['upc'],
-                            name=product['name'],
-                            brand=product['brand'],
-                            kroger_product_id=product['kroger_product_id']
-                        )
-                        
-                        # Store store-specific pricing and availability
-                        db.add_or_update_store_product(
-                            store_id=store_info['location_id'],
-                            product_upc=product['upc'],
-                            regular_price=product['regular_price'],
-                            promo_price=product['promo_price'],
-                            stock_level=product['stock_level'],
-                            is_available=product['is_available_instore']
-                        )
-                        
-                        stored_products.append({
-                            'upc': product['upc'],
-                            'name': product['name'],
-                            'brand': product['brand'],
-                            'regular_price': product['regular_price'],
-                            'promo_price': product['promo_price']
-                        })
-                
-                if print_results:
-                    print(f"\nDatabase Storage Results:")
-                    print(f"Store: {store_info['name']} (ID: {store_info['location_id']})")
-                    print(f"Products stored: {len(stored_products)}")
-                    print(f"Timestamp: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}")
-                
-                return {
-                    "success": True,
-                    "search_results": search_results,
-                    "stored_products": stored_products,
-                    "store_info": store_info,
-                    "message": f"Successfully stored {len(stored_products)} products from {store_info['name']}"
-                }
+            # Get 1 product per search (default limit is now 1)
+            search_results = kroger_api.productSearch(search_term, limit=1)
+            
+            if search_results:
+                product = search_results[0]  # Get first (and only) product
+                products.append(product)
+                print(f"    Found: {product.name} - ${product.price}")
+            else:
+                print(f"    No results for: {search_term}")
                 
         except Exception as e:
-            error_msg = f"Database error: {str(e)}"
-            if print_results:
-                print(f"Error: {error_msg}")
-            return {
-                "success": False,
-                "search_results": search_results,
-                "message": error_msg
-            }
+            print(f"    Error searching for {search_term}: {e}")
     
-    def get_product_pricing(self, product_upc, store_id):
-        """
-        Retrieve product pricing and availability from database.
-        
-        Args:
-            product_upc (str): Product UPC code
-            store_id (str): Store location ID
-            
-        Returns:
-            dict: Product pricing and availability information
-        """
-        try:
-            with Database(self.db_params) as db:
-                store_product = db.get_store_product_info(store_id, product_upc)
-                if store_product:
-                    return {
-                        "success": True,
-                        "product_upc": product_upc,
-                        "store_id": store_id,
-                        "regular_price": float(store_product['regular_price']) if store_product['regular_price'] else None,
-                        "promo_price": float(store_product['promo_price']) if store_product['promo_price'] else None,
-                        "stock_level": store_product['stock_level'],
-                        "is_available": store_product['is_available_instore'],
-                        "last_updated": store_product['last_updated'].isoformat()
-                    }
-                else:
-                    return {"success": False, "message": "Product not found in specified store"}
-                    
-        except Exception as e:
-            return {"success": False, "message": f"Database error: {str(e)}"}
-    
-    def get_cheapest_products(self, search_term, limit=3):
-        """
-        Search for products and return them sorted by price (cheapest first).
-        
-        Args:
-            search_term (str): Product search query
-            limit (int): Maximum number of products to return
-            
-        Returns:
-            list: Products sorted by regular price (ascending)
-        """
-        result = self.search_and_store_products(search_term, limit=limit * 2, print_results=False)
-        
-        if not result['success']:
-            return []
-        
-        # Sort products by regular price (cheapest first)
-        products_with_prices = [
-            p for p in result['stored_products'] 
-            if p['regular_price'] is not None
-        ]
-        
-        cheapest_products = sorted(
-            products_with_prices,
-            key=lambda x: float(x['regular_price'])
-        )
-        
-        return cheapest_products[:limit]
+    return products
 
-def demo_functionality():
-    """Demonstrate the integrated grocery service functionality."""
-    print("QLOO GROCERY OPTIMIZATION PLATFORM")
+def main():
+    """Main application entry point."""
     print("=" * 60)
-    print("Demonstrating Kroger API + Database Integration")
+    print("GROCERY OPTIMIZATION PLATFORM - DEMO SETUP")
+    print("=" * 60)
     
-    service = GroceryService()
+    # Step 1: Create user in database
+    print("\n1. Creating demo user...")
+    user_id = create_user_in_db()
+    if not user_id:
+        print("   ❌ Failed to create user")
+        return
     
-    # Demo 1: Search and store milk products
-    print("\nDEMO 1: Search and Store Products")
-    milk_results = service.search_and_store_products("milk", limit=3)
+    # Step 2: Create grocery list
+    print("\n2. Creating grocery list...")
+    list_id = create_grocery_list_in_db(user_id)
+    if not list_id:
+        print("   ❌ Failed to create grocery list")
+        return
     
-    if milk_results['success']:
-        print(f"Success: {milk_results['message']}")
+    # Step 3: Fetch products from Kroger API
+    print("\n3. Fetching products from Kroger API...")
+    products = fetch_kroger_products(5)
+    
+    if not products:
+        print("   ❌ No products fetched from Kroger API")
+        return
+    
+    print(f"   ✅ Successfully fetched {len(products)} products")
+    
+    # Step 4: Add products to database and grocery list
+    print("\n4. Adding products to database and grocery list...")
+    added_count = 0
+    
+    for product in products:
+        # Add product to products table
+        if add_product_to_db(product):
+            # Add product to grocery list
+            if add_product_to_list(list_id, product, quantity=1):
+                added_count += 1
+                print(f"   ✅ Added: {product.name}")
+            else:
+                print(f"   ❌ Failed to add to list: {product.name}")
+        else:
+            print(f"   ❌ Failed to add to products table: {product.name}")
+    
+    print(f"   ✅ Successfully added {added_count} products to grocery list")
+    
+    # Step 5: Verify creation by retrieving from database
+    print("\n5. Verifying creation...")
+    list_details = get_list_details(list_id)
+    
+    if list_details:
+        print(f"   ✅ Grocery list retrieved: {list_details['list_name']}")
+        print(f"   User ID: {list_details['user_id']}")
+        print(f"   List ID: {list_details['list_id']}")
+        print(f"   Created: {list_details['created_at']}")
+        print(f"   Number of products: {len(list_details['products'])}")
+        
+        if list_details['products']:
+            print("\n   Products in list:")
+            for upc, name, brand, quantity in list_details['products']:
+                print(f"     • {name}")
+                print(f"       Brand: {brand} | UPC: {upc} | Quantity: {quantity}")
     else:
-        print(f"Failed: {milk_results['message']}")
+        print("   ❌ Failed to retrieve grocery list details")
     
-    # Demo 2: Find cheapest products
-    print("\nDEMO 2: Cost Optimization")
-    print("Finding cheapest milk products...")
-    cheapest_milk = service.get_cheapest_products("milk", limit=3)
-    
-    if cheapest_milk:
-        print("Cheapest milk products:")
-        for i, product in enumerate(cheapest_milk, 1):
-            price = f"${product['regular_price']}" if product['regular_price'] else "N/A"
-            promo = f" (Promo: ${product['promo_price']})" if product['promo_price'] else ""
-            print(f"  {i}. {product['name']} - {price}{promo}")
-    else:
-        print("No pricing data available")
+    print("\n" + "=" * 60)
+    print("DEMO SETUP COMPLETE!")
+    print("=" * 60)
+    print(f"Created User ID: {user_id}")
+    print(f"Created List ID: {list_id}")
+    print(f"Products added: {added_count}")
+    print("\nYou can now view this data in pgAdmin!")
+    print("Check tables: users, grocerylists, products, grocerylistitems")
 
 if __name__ == "__main__":
-    demo_functionality()
+    main()

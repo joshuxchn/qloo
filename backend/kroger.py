@@ -4,6 +4,9 @@ import os
 import json
 from urllib.parse import urlencode
 from dotenv import load_dotenv
+from datetime import datetime
+from Database.product import Product
+from Database.user import User
 
 class KrogerAPI:
     def __init__(self):
@@ -47,9 +50,9 @@ class KrogerAPI:
         except Exception:
             pass
     
-    def productSearch(self, search_term, limit=3, zip_code=None):
+    def productSearch(self, search_term, limit=1, zip_code=None): #expand limit later with LLM and RAG
         """
-        Search for products using Kroger API and return structured product information.
+        Search for products using Kroger API and return Product objects.
         
         Args:
             search_term (str): Product to search for
@@ -57,13 +60,13 @@ class KrogerAPI:
             zip_code (str): ZIP code for store search, uses env variable if not provided
             
         Returns:
-            dict: Contains store info and product data, or None if failed
+            list: List of Product objects, or empty list if failed
         """
         if not zip_code:
             zip_code = self.zip_code
         
         if not self._service_token:
-            return None
+            return []
         
         # Find stores
         locations_url = f"{self.base_url}/v1/locations"
@@ -71,7 +74,7 @@ class KrogerAPI:
         params = {
             'filter.zipCode.near': zip_code,
             'filter.radiusInMiles': 10,
-            'filter.limit': 5
+            'filter.limit': 5 #expand later with LLM and RAG
         }
         
         try:
@@ -94,40 +97,24 @@ class KrogerAPI:
                 products_response = requests.get(products_url, headers=headers, params=product_params)
                 products = products_response.json()
                 
-                # Structure the return data
-                result = {
-                    'store': {
-                        'location_id': location_id,
-                        'name': store_name,
-                        'address': store.get('address', {}).get('addressLine1', ''),
-                        'zip_code': store.get('address', {}).get('zipCode', '')
-                    },
-                    'products': [],
-                    'search_term': search_term,
-                    'zip_code': zip_code
-                }
+                # Create list of Product objects
+                product_objects = []
                 
-                for i, product in enumerate(products.get("data", []), 1):
+                for product in products.get("data", []):
                     # Basic product info
                     name = product.get("description", "Unknown Product")
                     brand = product.get("brand", "Unknown Brand")
                     upc = product.get("upc", "N/A")
-                    product_id = product.get("productId", "N/A")
                     
                     # Get item details
                     items = product.get("items", [])
-                    product_data = {
-                        'upc': upc,
-                        'name': name,
-                        'brand': brand,
-                        'kroger_product_id': product_id,
-                        'regular_price': None,
-                        'promo_price': None,
-                        'stock_level': 'UNKNOWN',
-                        'is_available_instore': False,
-                        'size': None,
-                        'fulfillment': {}
-                    }
+                    
+                    # Initialize default values
+                    regular_price = None
+                    promo_price = None
+                    stock_level = "UNKNOWN"
+                    fulfillment_type = "UNKNOWN"
+                    size = None
                     
                     if items:
                         item = items[0]
@@ -137,32 +124,46 @@ class KrogerAPI:
                         if price_info:
                             regular_price = price_info.get("regular")
                             promo_price = price_info.get("promo")
-                            product_data['regular_price'] = regular_price
-                            product_data['promo_price'] = promo_price
                         
                         # FULFILLMENT
                         fulfillment = item.get("fulfillment", {})
-                        product_data['fulfillment'] = fulfillment
-                        product_data['is_available_instore'] = fulfillment.get('instore', False)
+                        if fulfillment.get('instore', False):
+                            fulfillment_type = "INSTORE"
+                        elif fulfillment.get('delivery', False):
+                            fulfillment_type = "DELIVERY"
+                        elif fulfillment.get('pickup', False):
+                            fulfillment_type = "PICKUP"
                         
                         # INVENTORY
-                        stock_level = item.get("inventory", {}).get("stockLevel")
-                        if stock_level:
-                            product_data['stock_level'] = stock_level
+                        inventory_info = item.get("inventory", {})
+                        stock_level = inventory_info.get("stockLevel", "UNKNOWN")
                         
                         # SIZE
                         size = item.get("size", "N/A")
-                        if size != "N/A":
-                            product_data['size'] = size
+                        if size == "N/A":
+                            size = None
                     
-                    result['products'].append(product_data)
+                    product_obj = Product(
+                        name=name,
+                        price=regular_price,
+                        promo_price=promo_price,
+                        fufillment_type=fulfillment_type,
+                        brand=brand,
+                        inventory=stock_level,
+                        size=size,
+                        last_updated=datetime.now(),
+                        location_ID=location_id,
+                        upc=upc
+                    )
+                    
+                    product_objects.append(product_obj)
                 
-                return result
+                return product_objects
             else:
-                return None
+                return []
                 
         except Exception:
-            return None
+            return []
     
     def getAuthorizationUrl(self, scopes="cart.basic:write profile.compact", state="auth_state"):
         """
