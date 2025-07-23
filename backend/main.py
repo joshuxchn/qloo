@@ -1,292 +1,295 @@
 #!/usr/bin/env python3
 """
 Main application entry point for the grocery optimization platform.
-Creates a user, grocery list, and populates it with Kroger products.
+Structured user flow with clean database integration using db_utils.py
 """
 
+import sys
+import os
 import uuid
-import psycopg2
+from datetime import datetime, timezone
+
+# Add the Database directory to sys.path for imports
+sys.path.append(os.path.join(os.path.dirname(__file__), 'Database'))
+
+from Database import db_utils
+from Database.user import User
+from Database.list import GroceryList
 from kroger import KrogerAPI
 
-# Database connection parameters
-DB_NAME = "grocery_app"
-DB_USER = "joshuachen"
-DB_PASSWORD = ""
-DB_HOST = "localhost"
-DB_PORT = "5432"
-
-def get_db_connection():
-    """Establishes a connection to the PostgreSQL database."""
-    try:
-        conn = psycopg2.connect(
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            host=DB_HOST,
-            port=DB_PORT
-        )
-        return conn
-    except psycopg2.Error as e:
-        print(f"Error connecting to database: {e}")
-        return None
-
-def create_user_in_db():
-    """Create a user directly in the database using the existing schema."""
-    conn = get_db_connection()
-    if conn is None:
-        return None
+class GroceryOptimizationApp:
+    """Main application class for grocery optimization platform."""
     
-    try:
-        with conn.cursor() as cur:
-            # Insert user and get the auto-generated ID
-            unique_suffix = uuid.uuid4().hex[:6]
-            cur.execute("""
-                INSERT INTO users (username, email, password_hash)
-                VALUES (%s, %s, %s)
-                RETURNING user_id;
-            """, (
-                f"demo_user_{unique_suffix}",
-                f"demo_{unique_suffix}@grocery-demo.com", 
-                "demo_password_hash"
-            ))
-            
-            user_id = cur.fetchone()[0]
-            
-        conn.commit()
-        print(f"   ✅ Created user with ID: {user_id}")
-        return user_id
+    def __init__(self):
+        """Initialize the application."""
+        self.kroger_api = KrogerAPI()
+        self.current_user = None
+        self.current_list = None
         
-    except Exception as e:
-        print(f"   ❌ Error creating user: {e}")
-        return None
-    finally:
-        conn.close()
-
-def create_grocery_list_in_db(user_id):
-    """Create a grocery list directly in the database."""
-    conn = get_db_connection()
-    if conn is None:
-        return None
-    
-    try:
-        with conn.cursor() as cur:
-            # Insert grocery list and get the auto-generated ID
-            cur.execute("""
-                INSERT INTO grocerylists (user_id, list_name)
-                VALUES (%s, %s)
-                RETURNING list_id;
-            """, (user_id, f"Demo Grocery List"))
-            
-            list_id = cur.fetchone()[0]
-            
-        conn.commit()
-        print(f"   ✅ Created grocery list with ID: {list_id}")
-        return list_id
+    def get_user_credentials(self):
+        """Get user email and password (will be Google auth later)."""
+        print("\n" + "=" * 50)
+        print("🔐 USER AUTHENTICATION")
+        print("=" * 50)
         
-    except Exception as e:
-        print(f"   ❌ Error creating grocery list: {e}")
-        return None
-    finally:
-        conn.close()
-
-def add_product_to_db(product):
-    """Add a product to the products table if it doesn't exist."""
-    conn = get_db_connection()
-    if conn is None:
-        return False
-    
-    try:
-        with conn.cursor() as cur:
-            # Insert product (ignore if already exists)
-            cur.execute("""
-                INSERT INTO products (upc, name, brand)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (upc) DO NOTHING;
-            """, (product.upc, product.name, product.brand))
-            
-        conn.commit()
-        return True
+        email = input("Enter your email: ").strip()
+        password = input("Enter your password: ").strip()
         
-    except Exception as e:
-        print(f"   ⚠️  Error adding product {product.upc}: {e}")
-        return False
-    finally:
-        conn.close()
-
-def add_product_to_list(list_id, product, quantity=1):
-    """Add a product to a grocery list."""
-    conn = get_db_connection()
-    if conn is None:
-        return False
-    
-    try:
-        with conn.cursor() as cur:
-            # Insert into grocery list items
-            cur.execute("""
-                INSERT INTO grocerylistitems (list_id, product_upc, quantity)
-                VALUES (%s, %s, %s)
-                ON CONFLICT (list_id, product_upc) DO UPDATE SET
-                    quantity = grocerylistitems.quantity + EXCLUDED.quantity;
-            """, (list_id, product.upc, quantity))
+        if not email or not password:
+            print("❌ Email and password are required!")
+            return None, None
             
-        conn.commit()
-        return True
-        
-    except Exception as e:
-        print(f"   ⚠️  Error adding product to list: {e}")
-        return False
-    finally:
-        conn.close()
-
-def get_list_details(list_id):
-    """Get details of a grocery list with products."""
-    conn = get_db_connection()
-    if conn is None:
-        return None
+        return email, password
     
-    try:
-        with conn.cursor() as cur:
-            # Get list info
-            cur.execute("""
-                SELECT gl.list_id, gl.user_id, gl.list_name, gl.created_at
-                FROM grocerylists gl
-                WHERE gl.list_id = %s;
-            """, (list_id,))
+    def find_user_by_email(self, email):
+        """Check if user exists by email (custom function since db_utils doesn't have this)."""
+        # Since db_utils doesn't have find_by_email, we'll implement it here
+        # This would normally be in db_utils.py but we'll add it temporarily
+        conn = db_utils.get_db_connection()
+        if conn is None:
+            return None
             
-            list_data = cur.fetchone()
-            if not list_data:
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT user_id FROM users WHERE email = %s;", (email,))
+                result = cur.fetchone()
+                if result:
+                    user_id = result[0]
+                    return db_utils.get_user_by_id(user_id)
                 return None
-                
-            # Get products in the list
-            cur.execute("""
-                SELECT p.upc, p.name, p.brand, gli.quantity
-                FROM grocerylistitems gli
-                JOIN products p ON gli.product_upc = p.upc
-                WHERE gli.list_id = %s;
-            """, (list_id,))
-            
-            products = cur.fetchall()
-            
-        return {
-            'list_id': list_data[0],
-            'user_id': list_data[1], 
-            'list_name': list_data[2],
-            'created_at': list_data[3],
-            'products': products
-        }
+        except Exception as e:
+            print(f"Error finding user by email: {e}")
+            return None
+        finally:
+            conn.close()
+    
+    def create_new_user(self, email, password):
+        """Create a new user with unique ID using demo.py pattern."""
+        print("\n📝 Creating new user account...")
         
-    except Exception as e:
-        print(f"Error getting list details: {e}")
-        return None
-    finally:
-        conn.close()
-
-def fetch_kroger_products(num_products=5):
-    """Fetch products from Kroger API using different search terms."""
-    kroger_api = KrogerAPI()
+        # Generate unique user ID using UUID (demo.py pattern)
+        user_id = str(uuid.uuid4())
+        
+        # Extract username from email
+        username = email.split('@')[0]
+        
+        # Create User object with filler data (following demo.py structure)
+        user = User(
+            user_ID=user_id,
+            username=username,
+            email=email,
+            password=password,  # In production, this would be hashed
+            list_of_list_ids=[],
+            access_token=None,  # Will be set when Kroger OAuth is implemented
+            refresh_token=None,
+            token_type=None,
+            token_expiry=None,
+            preferred_location="98075"  # Default ZIP code
+        )
+        
+        # Save to database using db_utils
+        if db_utils.add_user_to_db(user):
+            print(f"   ✅ User created successfully!")
+            print(f"   User ID: {user_id}")
+            print(f"   Username: {username}")
+            return user
+        else:
+            print("   ❌ Failed to create user in database")
+            return None
     
-    # Different search terms to get variety
-    search_terms = ["milk", "bread", "apples", "chicken", "rice", "eggs", "cheese", "bananas"]
+    def get_or_create_user(self, email, password):
+        """Get existing user or create new one."""
+        print("\n🔍 Checking for existing user...")
+        
+        # Check if user exists
+        existing_user = self.find_user_by_email(email)
+        
+        if existing_user:
+            print(f"   ✅ Found existing user: {existing_user.username}")
+            print(f"   User ID: {existing_user.user_id}")
+            # In production, verify password here
+            return existing_user
+        else:
+            print("   ℹ️  No existing user found")
+            return self.create_new_user(email, password)
     
-    products = []
+    def get_user_grocery_lists(self, user_id):
+        """Fetch existing grocery lists for user."""
+        print("\n🛒 Checking for existing grocery lists...")
+        
+        # Use db_utils to get list IDs for user
+        list_ids = db_utils.get_grocery_list_ids_for_user(user_id)
+        
+        if list_ids:
+            print(f"   ✅ Found {len(list_ids)} existing grocery list(s)")
+            lists = []
+            for list_id in list_ids:
+                grocery_list = db_utils.get_grocery_list_details(list_id)
+                if grocery_list:
+                    lists.append(grocery_list)
+                    print(f"   - List ID: {list_id} ({len(grocery_list.products_on_list)} items)")
+            return lists
+        else:
+            print("   ℹ️  No existing grocery lists found")
+            return []
     
-    print(f"Fetching {num_products} products from Kroger API...")
+    def create_new_grocery_list(self, user_id):
+        """Create a new grocery list for the user."""
+        print("\n📋 Creating new grocery list...")
+        
+        # Generate unique list ID using UUID (demo.py pattern)
+        list_id = str(uuid.uuid4())
+        
+        # Create GroceryList object using demo.py structure
+        grocery_list = GroceryList(
+            list_ID=list_id,
+            user_ID=user_id,
+            timestamp=datetime.now(timezone.utc),
+            products_on_list=[]
+        )
+        
+        # Save to database using db_utils
+        if db_utils.add_grocery_list_to_db(grocery_list):
+            print(f"   ✅ Grocery list created successfully!")
+            print(f"   List ID: {list_id}")
+            return grocery_list
+        else:
+            print("   ❌ Failed to create grocery list")
+            return None
     
-    for i in range(num_products):
-        search_term = search_terms[i % len(search_terms)]
-        print(f"  Searching for: {search_term}")
+    def get_or_create_grocery_list(self, user_id):
+        """Get existing grocery list or create new one."""
+        existing_lists = self.get_user_grocery_lists(user_id)
+        
+        if existing_lists:
+            # Use the first existing list
+            grocery_list = existing_lists[0]
+            print(f"   ✅ Using existing list: {grocery_list.list_id}")
+            return grocery_list
+        else:
+            # Create new list
+            return self.create_new_grocery_list(user_id)
+    
+    def fetch_kroger_products_for_testing(self, num_products=5):
+        """Fetch products from Kroger API for testing."""
+        print("\n🛍️  Fetching products from Kroger API...")
+        
+        # Different search terms for variety
+        search_terms = ["milk", "bread", "apples", "chicken", "rice", "eggs", "cheese", "bananas"]
+        
+        products = []
+        
+        for i in range(num_products):
+            search_term = search_terms[i % len(search_terms)]
+            print(f"   Searching for: {search_term}")
+            
+            try:
+                # Get 1 product per search
+                search_results = self.kroger_api.productSearch(search_term, limit=1)
+                
+                if search_results:
+                    product = search_results[0]
+                    products.append(product)
+                    print(f"     ✅ Found: {product.name} - ${product.price}")
+                else:
+                    print(f"     ❌ No results for: {search_term}")
+                    
+            except Exception as e:
+                print(f"     ❌ Error searching for {search_term}: {e}")
+        
+        print(f"   ✅ Successfully fetched {len(products)} products")
+        return products
+    
+    def add_products_to_list(self, grocery_list, products):
+        """Add Kroger products to grocery list."""
+        print("\n➕ Adding products to grocery list...")
+        
+        # Add products to the list object (demo.py pattern)
+        for product in products:
+            grocery_list.products_on_list.append((product, 1))  # Quantity 1
+            print(f"   ✅ Added: {product.name}")
+        
+        # Save updated list to database using db_utils
+        if db_utils.add_grocery_list_to_db(grocery_list):
+            print(f"   ✅ Updated grocery list saved to database")
+            return True
+        else:
+            print("   ❌ Failed to save updated grocery list")
+            return False
+    
+    def display_final_summary(self):
+        """Display final summary of the user's data."""
+        print("\n" + "=" * 60)
+        print("📊 FINAL SUMMARY")
+        print("=" * 60)
+        
+        if self.current_user:
+            print(f"👤 User: {self.current_user.username} ({self.current_user.email})")
+            print(f"🆔 User ID: {self.current_user.user_id}")
+            
+            if self.current_list:
+                print(f"📋 Grocery List ID: {self.current_list.list_id}")
+                print(f"🛒 Items in list: {len(self.current_list.products_on_list)}")
+                
+                if self.current_list.products_on_list:
+                    total_cost = 0
+                    print("\n📦 Products:")
+                    for product, quantity in self.current_list.products_on_list:
+                        cost = float(product.price) * quantity if product.price else 0
+                        total_cost += cost
+                        print(f"   • {product.name}")
+                        print(f"     Brand: {product.brand} | Price: ${product.price} | Qty: {quantity}")
+                        print(f"     UPC: {product.upc} | Subtotal: ${cost:.2f}")
+                    
+                    print(f"\n💰 Total estimated cost: ${total_cost:.2f}")
+        
+        print("\n🔍 You can now view this data in pgAdmin!")
+        print("Tables: users, grocery_lists, grocery_list_items")
+    
+    def run(self):
+        """Main application entry point."""
+        print("=" * 60)
+        print("🛒 GROCERY OPTIMIZATION PLATFORM")
+        print("=" * 60)
+        print("Structured user flow with database integration")
         
         try:
-            # Get 1 product per search (default limit is now 1)
-            search_results = kroger_api.productSearch(search_term, limit=1)
+            # Step 1: Get user credentials
+            email, password = self.get_user_credentials()
+            if not email or not password:
+                return
             
-            if search_results:
-                product = search_results[0]  # Get first (and only) product
-                products.append(product)
-                print(f"    Found: {product.name} - ${product.price}")
-            else:
-                print(f"    No results for: {search_term}")
-                
+            # Step 2: Get or create user
+            self.current_user = self.get_or_create_user(email, password)
+            if not self.current_user:
+                print("❌ Failed to authenticate or create user")
+                return
+            
+            # Step 3: Get or create grocery list
+            self.current_list = self.get_or_create_grocery_list(self.current_user.user_id)
+            if not self.current_list:
+                print("❌ Failed to get or create grocery list")
+                return
+            
+            # Step 4: Add Kroger products for testing
+            products = self.fetch_kroger_products_for_testing(5)
+            if products:
+                self.add_products_to_list(self.current_list, products)
+            
+            # Step 5: Display summary
+            self.display_final_summary()
+            
+        except KeyboardInterrupt:
+            print("\n\n⚠️  Application interrupted by user")
         except Exception as e:
-            print(f"    Error searching for {search_term}: {e}")
-    
-    return products
+            print(f"\n❌ Unexpected error: {e}")
+            import traceback
+            traceback.print_exc()
 
 def main():
-    """Main application entry point."""
-    print("=" * 60)
-    print("GROCERY OPTIMIZATION PLATFORM - DEMO SETUP")
-    print("=" * 60)
-    
-    # Step 1: Create user in database
-    print("\n1. Creating demo user...")
-    user_id = create_user_in_db()
-    if not user_id:
-        print("   ❌ Failed to create user")
-        return
-    
-    # Step 2: Create grocery list
-    print("\n2. Creating grocery list...")
-    list_id = create_grocery_list_in_db(user_id)
-    if not list_id:
-        print("   ❌ Failed to create grocery list")
-        return
-    
-    # Step 3: Fetch products from Kroger API
-    print("\n3. Fetching products from Kroger API...")
-    products = fetch_kroger_products(5)
-    
-    if not products:
-        print("   ❌ No products fetched from Kroger API")
-        return
-    
-    print(f"   ✅ Successfully fetched {len(products)} products")
-    
-    # Step 4: Add products to database and grocery list
-    print("\n4. Adding products to database and grocery list...")
-    added_count = 0
-    
-    for product in products:
-        # Add product to products table
-        if add_product_to_db(product):
-            # Add product to grocery list
-            if add_product_to_list(list_id, product, quantity=1):
-                added_count += 1
-                print(f"   ✅ Added: {product.name}")
-            else:
-                print(f"   ❌ Failed to add to list: {product.name}")
-        else:
-            print(f"   ❌ Failed to add to products table: {product.name}")
-    
-    print(f"   ✅ Successfully added {added_count} products to grocery list")
-    
-    # Step 5: Verify creation by retrieving from database
-    print("\n5. Verifying creation...")
-    list_details = get_list_details(list_id)
-    
-    if list_details:
-        print(f"   ✅ Grocery list retrieved: {list_details['list_name']}")
-        print(f"   User ID: {list_details['user_id']}")
-        print(f"   List ID: {list_details['list_id']}")
-        print(f"   Created: {list_details['created_at']}")
-        print(f"   Number of products: {len(list_details['products'])}")
-        
-        if list_details['products']:
-            print("\n   Products in list:")
-            for upc, name, brand, quantity in list_details['products']:
-                print(f"     • {name}")
-                print(f"       Brand: {brand} | UPC: {upc} | Quantity: {quantity}")
-    else:
-        print("   ❌ Failed to retrieve grocery list details")
-    
-    print("\n" + "=" * 60)
-    print("DEMO SETUP COMPLETE!")
-    print("=" * 60)
-    print(f"Created User ID: {user_id}")
-    print(f"Created List ID: {list_id}")
-    print(f"Products added: {added_count}")
-    print("\nYou can now view this data in pgAdmin!")
-    print("Check tables: users, grocerylists, products, grocerylistitems")
+    """Application entry point."""
+    app = GroceryOptimizationApp()
+    app.run()
 
 if __name__ == "__main__":
     main()

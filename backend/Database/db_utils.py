@@ -317,6 +317,15 @@ def add_grocery_list_to_db(grocery_list_obj):
 
             # 3. Insert grocery_list_items
             for product, quantity in grocery_list_obj.products_on_list:
+                # Convert inventory string to integer for database
+                inventory_int = None
+                if product.inventory:
+                    if isinstance(product.inventory, str):
+                        inventory_map = {"HIGH": 100, "MEDIUM": 50, "LOW": 10, "OUT_OF_STOCK": 0, "UNKNOWN": None}
+                        inventory_int = inventory_map.get(product.inventory.upper(), None)
+                    else:
+                        inventory_int = product.inventory
+                
                 cur.execute("""
                     INSERT INTO grocery_list_items (list_id, name, price, promo_price, fufillment_type, aisle, inventory, size, last_updated, location_id, upc, quantity)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
@@ -327,7 +336,7 @@ def add_grocery_list_to_db(grocery_list_obj):
                     product.promo_price,
                     product.fufillment_type,
                     product.brand,  # Using brand field for aisle column
-                    product.inventory,
+                    inventory_int,  # Converted to integer
                     product.size,
                     product.last_updated,
                     product.location_ID,
