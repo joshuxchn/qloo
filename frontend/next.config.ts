@@ -1,15 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
-  experimental: {
-    outputFileTracingRoot: undefined,
-  },
-  // Optimize for production
-  swcMinify: true,
-  poweredByHeader: false,
-  // Handle trailing slashes
+  // Simplified config for AWS Amplify
   trailingSlash: false,
+  poweredByHeader: false,
+  // Ensure proper image optimization for Amplify
+  images: {
+    unoptimized: false,
+  },
 };
 
 export default nextConfig;

@@ -4,10 +4,16 @@ frontend:
     preBuild:
       commands:
         - cd frontend
+        - nvm use 18
+        - node --version
+        - npm --version
         - npm ci
     build:
       commands:
+        - echo "Starting build process..."
         - npm run build
+        - echo "Build completed, checking output..."
+        - ls -la .next/
   artifacts:
     baseDirectory: frontend/.next
     files:
