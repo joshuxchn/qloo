@@ -1,15 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // AWS Amplify compatibility fixes
-  trailingSlash: false,
+  // Try static export for AWS Amplify
+  output: 'export',
+  trailingSlash: true,
   poweredByHeader: false,
-  // Critical: Disable image optimization for Amplify
+  // Critical: Disable image optimization for static export
   images: {
     unoptimized: true,
   },
-  // Ensure static files are properly handled
-  assetPrefix: undefined,
   // Fix potential hydration issues
   reactStrictMode: false,
 };

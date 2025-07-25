@@ -12,14 +12,18 @@ frontend:
         - echo "Dependencies installed successfully"
     build:
       commands:
-        - echo "Starting build process..."
+        - echo "Starting static export build..."
         - npm run build
-        - echo "Build completed, checking output..."
-        - ls -la .next/
-        - echo "Checking for static files..."
-        - find .next/static -name "*.css" -o -name "*.js" | head -10
+        - echo "Build completed, checking output directories..."
+        - ls -la
+        - echo "Checking out directory..."
+        - ls -la out/ || echo "No out directory found"
+        - echo "Checking .next directory..."
+        - ls -la .next/ || echo "No .next directory found"
+        - echo "Checking for index.html..."
+        - find . -name "index.html" -type f
   artifacts:
-    baseDirectory: frontend/.next
+    baseDirectory: frontend/out
     files:
       - '**/*'
   cache:
