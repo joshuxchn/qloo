@@ -1,7 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'standalone',
+  experimental: {
+    outputFileTracingRoot: undefined,
+  },
+  // Optimize for production
+  swcMinify: true,
+  poweredByHeader: false,
+  // Handle trailing slashes
+  trailingSlash: false,
 };
 
 export default nextConfig;
