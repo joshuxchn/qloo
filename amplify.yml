@@ -4,16 +4,20 @@ frontend:
     preBuild:
       commands:
         - cd frontend
-        - nvm use 18
+        - nvm use 20
         - node --version
         - npm --version
+        - echo "Installing dependencies..."
         - npm ci
+        - echo "Dependencies installed successfully"
     build:
       commands:
         - echo "Starting build process..."
         - npm run build
         - echo "Build completed, checking output..."
         - ls -la .next/
+        - echo "Checking for static files..."
+        - find .next/static -name "*.css" -o -name "*.js" | head -10
   artifacts:
     baseDirectory: frontend/.next
     files:
