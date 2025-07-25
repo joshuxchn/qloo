@@ -2,9 +2,9 @@ import psycopg2
 import psycopg2.extras # For DictCursor
 from datetime import datetime, timezone, timedelta
 import json # For serializing/deserializing list of list IDs
-from list import GroceryList
-from product import Product
-from user import User
+from .list import GroceryList
+from .product import Product
+from .user import User
 DB_NAME = "grocery_app"
 DB_USER = "joshuachen" # Current user
 DB_PASSWORD = "" # Leave empty if you don't have a password set for your user

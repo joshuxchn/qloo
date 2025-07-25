@@ -10,7 +10,10 @@ from Database.user import User
 
 class KrogerAPI:
     def __init__(self):
-        load_dotenv("../.env")
+        # Get absolute path to .env file
+        current_dir = os.path.dirname(__file__)
+        env_path = os.path.join(current_dir, "../.env")
+        load_dotenv(env_path)
         self.client_id = os.getenv("KROGER_CLIENT_ID")
         self.client_secret = os.getenv("KROGER_CLIENT_SECRET")
         self.redirect_uri = os.getenv("KROGER_REDIRECT_URI")

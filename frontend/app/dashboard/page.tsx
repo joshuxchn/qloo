@@ -1,6 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { 
+  getUserLists, 
+  addItemToList, 
+  searchProducts, 
+  createGroceryList,
+  getStoredUser,
+  formatPrice, 
+  formatInventory,
+  type User,
+  type GroceryList as ApiGroceryList,
+  type Product 
+} from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -44,51 +57,65 @@ interface Store {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
+  const [user, setUser] = useState<User | null>(null)
   const [newItem, setNewItem] = useState("")
-  const [groceryList, setGroceryList] = useState<GroceryItem[]>([
-    {
-      id: "1",
-      name: "Organic Bananas (2 lbs)",
-      category: "Produce",
-      price: 2.99,
-      originalPrice: 3.49,
-      store: "Kroger",
-      inStock: true,
-      alternatives: 3,
-      healthScore: 95,
-    },
-    {
-      id: "2",
-      name: "Whole Wheat Bread",
-      category: "Bakery",
-      price: 3.29,
-      store: "Kroger",
-      inStock: true,
-      alternatives: 5,
-      healthScore: 78,
-    },
-    {
-      id: "3",
-      name: "Greek Yogurt (32oz)",
-      category: "Dairy",
-      price: 5.99,
-      originalPrice: 6.99,
-      store: "Kroger",
-      inStock: false,
-      alternatives: 4,
-      healthScore: 88,
-    },
-    {
-      id: "4",
-      name: "Chicken Breast (2 lbs)",
-      category: "Meat",
-      price: 8.99,
-      store: "Kroger",
-      inStock: true,
-      alternatives: 2,
-      healthScore: 85,
-    },
-  ])
+  const [groceryList, setGroceryList] = useState<GroceryItem[]>([])
+  const [userLists, setUserLists] = useState<ApiGroceryList[]>([])
+  const [currentListId, setCurrentListId] = useState<string | null>(null)
+  
+  // Loading states
+  const [isLoading, setIsLoading] = useState(true)
+  const [isAddingItem, setIsAddingItem] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Load user and their lists on component mount
+  useEffect(() => {
+    const loadUserData = async () => {
+      // Check if user is logged in
+      const storedUser = getStoredUser()
+      if (!storedUser) {
+        router.push('/profile')
+        return
+      }
+
+      setUser(storedUser)
+
+      try {
+        // Load user's grocery lists from backend
+        const listsResponse = await getUserLists(storedUser.id)
+        
+        if (listsResponse.success && listsResponse.data) {
+          setUserLists(listsResponse.data.lists)
+          
+          // If user has lists, use the first one
+          if (listsResponse.data.lists.length > 0) {
+            const firstList = listsResponse.data.lists[0]
+            setCurrentListId(firstList.id)
+            setGroceryList(firstList.items.map(item => ({
+              id: item.upc,
+              name: item.name,
+              category: "Kroger", // We could enhance this with category mapping
+              price: item.price,
+              originalPrice: item.price, // Could enhance with promo_price logic
+              store: "Kroger",
+              inStock: true, // Could enhance with inventory status
+              alternatives: 0, // Could enhance with alternative products
+              healthScore: 85, // Could enhance with nutritional data
+            })))
+          }
+        } else {
+          setError(listsResponse.error || "Failed to load grocery lists")
+        }
+      } catch (err) {
+        setError("Failed to load user data")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadUserData()
+  }, [])
 
   const [nearbyStores] = useState<Store[]>([
     {
@@ -120,19 +147,80 @@ export default function DashboardPage() {
     },
   ])
 
-  const addItem = () => {
-    if (newItem.trim()) {
-      const newGroceryItem: GroceryItem = {
-        id: Date.now().toString(),
-        name: newItem,
-        category: "Pending",
-        price: 0,
-        store: "Processing...",
-        inStock: true,
-        alternatives: 0,
+  const addItem = async () => {
+    console.log("🚀 addItem called with:", { newItem: newItem.trim(), user: user?.username, currentListId })
+    
+    if (!newItem.trim()) {
+      console.log("❌ No item name provided")
+      return
+    }
+    
+    if (!user) {
+      console.log("❌ No user found")
+      return
+    }
+
+    setIsAddingItem(true)
+    setError(null)
+
+    try {
+      // If no current list exists, create one first
+      let listId = currentListId
+      if (!listId) {
+        console.log("No existing list found, creating new list for user:", user.id)
+        const createListResponse = await createGroceryList(user.id)
+        
+        if (createListResponse.success && createListResponse.data) {
+          listId = createListResponse.data.list.id
+          setCurrentListId(listId)
+          console.log("Created new list with ID:", listId)
+        } else {
+          setError("Failed to create grocery list")
+          return
+        }
       }
-      setGroceryList([...groceryList, newGroceryItem])
-      setNewItem("")
+
+      // First, search for the product to get real data
+      console.log("Searching for product:", newItem.trim())
+      const searchResponse = await searchProducts(newItem.trim(), 1)
+      
+      if (searchResponse.success && searchResponse.data && searchResponse.data.products.length > 0) {
+        const product = searchResponse.data.products[0]
+        console.log("Found product:", product.name, "- $" + product.price)
+        
+        // Add the real product to the list
+        console.log("Adding product to list:", listId)
+        const addResponse = await addItemToList(listId!, newItem.trim(), 1)
+        
+        if (addResponse.success && addResponse.data) {
+          console.log("Successfully added item to backend")
+          // Add to local state with real product data
+          const newGroceryItem: GroceryItem = {
+            id: product.upc,
+            name: product.name,
+            category: "Kroger",
+            price: product.price || 0,
+            originalPrice: product.promo_price ? product.price : undefined,
+            store: "Kroger",
+            inStock: product.inventory !== "OUT_OF_STOCK",
+            alternatives: 0,
+            healthScore: 85,
+          }
+          
+          setGroceryList([...groceryList, newGroceryItem])
+          setNewItem("")
+        } else {
+          setError(addResponse.error || "Failed to add item to list")
+        }
+      } else {
+        // Product not found, show error
+        setError(`Product "${newItem}" not found in Kroger catalog`)
+      }
+    } catch (err) {
+      console.error("Error adding item:", err)
+      setError("Failed to add item. Please try again.")
+    } finally {
+      setIsAddingItem(false)
     }
   }
 
@@ -146,6 +234,18 @@ export default function DashboardPage() {
     0,
   )
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your grocery data...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
       {/* Header */}
@@ -156,6 +256,11 @@ export default function DashboardPage() {
             <h1 className="text-xl font-medium text-gray-900">groceryai</h1>
           </Link>
           <div className="flex items-center space-x-3">
+            {user && (
+              <span className="text-sm text-gray-600">
+                Welcome, {user.username}!
+              </span>
+            )}
             <Button variant="ghost" size="sm" asChild>
               <Link href="/profile">profile</Link>
             </Button>
@@ -241,16 +346,32 @@ export default function DashboardPage() {
                 <CardTitle className="text-lg font-medium">grocery list</CardTitle>
               </CardHeader>
               <CardContent>
+                {/* Error Display */}
+                {error && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-red-700 text-sm">{error}</p>
+                  </div>
+                )}
+
                 <div className="flex gap-2 mb-6">
                   <Input
-                    placeholder="add item..."
+                    placeholder="add item (e.g., 'milk', 'bananas', 'chicken')..."
                     value={newItem}
                     onChange={(e) => setNewItem(e.target.value)}
-                    onKeyPress={(e) => e.key === "Enter" && addItem()}
+                    onKeyDown={(e) => e.key === "Enter" && !isAddingItem && addItem()}
                     className="flex-1 border-0 bg-gray-50"
+                    disabled={isAddingItem}
                   />
-                  <Button onClick={addItem} size="sm">
-                    <Plus className="h-4 w-4" />
+                  <Button 
+                    onClick={addItem} 
+                    size="sm"
+                    disabled={isAddingItem || !newItem.trim()}
+                  >
+                    {isAddingItem ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
                   </Button>
                 </div>
 

@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { loginUser, storeUser } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,10 +15,21 @@ import { User, DollarSign, Heart, Globe, ArrowRight } from "lucide-react"
 import Link from "next/link"
 
 export default function ProfilePage() {
+  const router = useRouter()
+  
+  // Form state
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
   const [budget, setBudget] = useState([200])
   const [selectedDiets, setSelectedDiets] = useState<string[]>([])
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([])
   const [selectedAllergies, setSelectedAllergies] = useState<string[]>([])
+  
+  // Loading and error states
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const dietaryRestrictions = [
     "Vegetarian",
@@ -49,6 +62,39 @@ export default function ProfilePage() {
       setList(list.filter((i) => i !== item))
     } else {
       setList([...list, item])
+    }
+  }
+
+  const handleSubmit = async () => {
+    // Basic validation
+    if (!email || !password) {
+      setError("Email and password are required")
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // Call your backend to create/login user
+      const response = await loginUser(email, password)
+      
+      if (response.success && response.data) {
+        // Store user data locally
+        storeUser(response.data.user)
+        
+        // TODO: Save additional profile data (dietary restrictions, etc.) to backend
+        // This would require a new API endpoint like /api/profile/update
+        
+        // Redirect to dashboard
+        router.push('/dashboard')
+      } else {
+        setError(response.error || "Failed to create profile")
+      }
+    } catch (err) {
+      setError("Network error. Please try again.")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -90,17 +136,46 @@ export default function ProfilePage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="firstName">First Name</Label>
-                    <Input id="firstName" placeholder="John" />
+                    <Input 
+                      id="firstName" 
+                      placeholder="John" 
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                    />
                   </div>
                   <div>
                     <Label htmlFor="lastName">Last Name</Label>
-                    <Input id="lastName" placeholder="Doe" />
+                    <Input 
+                      id="lastName" 
+                      placeholder="Doe" 
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                    />
                   </div>
                 </div>
 
                 <div>
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="john@example.com" />
+                  <Input 
+                    id="email" 
+                    type="email" 
+                    placeholder="john@example.com" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="password">Password</Label>
+                  <Input 
+                    id="password" 
+                    type="password" 
+                    placeholder="Create a password" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -309,13 +384,29 @@ export default function ProfilePage() {
             </Card>
           </div>
 
+          {/* Error Display */}
+          {error && (
+            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700 text-sm">{error}</p>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="text-lg px-8 py-3" asChild>
-              <Link href="/dashboard" className="flex items-center gap-2">
-                Create Profile & Continue
-                <ArrowRight className="h-5 w-5" />
-              </Link>
+            <Button 
+              size="lg" 
+              className="text-lg px-8 py-3" 
+              onClick={handleSubmit}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>Loading...</>
+              ) : (
+                <>
+                  Create Profile & Continue
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </>
+              )}
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-8 py-3 bg-transparent" asChild>
               <Link href="/">Back to Home</Link>

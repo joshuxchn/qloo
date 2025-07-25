@@ -170,44 +170,35 @@ class GroceryOptimizationApp:
             # Create new list
             return self.create_new_grocery_list(user_id)
     
-    def fetch_kroger_products_for_testing(self, num_products=5):
+    def fetch_kroger_products_for_testing(self, search_term, num_products=1):
         """Fetch products from Kroger API for testing."""
         print("\n🛍️  Fetching products from Kroger API...")
         
-        # Different search terms for variety
-        search_terms = ["milk", "bread", "apples", "chicken", "rice", "eggs", "cheese", "bananas"]
+        print(f"   Searching for: {search_term}")
         
-        products = []
-        
-        for i in range(num_products):
-            search_term = search_terms[i % len(search_terms)]
-            print(f"   Searching for: {search_term}")
+        try:
+            # Get 1 product per search
+            search_results = self.kroger_api.productSearch(search_term, limit=1)
             
-            try:
-                # Get 1 product per search
-                search_results = self.kroger_api.productSearch(search_term, limit=1)
+            if search_results:
+                product = search_results[0]
+                print(f"     ✅ Found: {product.name} - ${product.price}")
+            else:
+                print(f"     ❌ No results for: {search_term}")
                 
-                if search_results:
-                    product = search_results[0]
-                    products.append(product)
-                    print(f"     ✅ Found: {product.name} - ${product.price}")
-                else:
-                    print(f"     ❌ No results for: {search_term}")
-                    
-            except Exception as e:
-                print(f"     ❌ Error searching for {search_term}: {e}")
+        except Exception as e:
+            print(f"     ❌ Error searching for {search_term}: {e}")
         
-        print(f"   ✅ Successfully fetched {len(products)} products")
-        return products
+        print(f"   ✅ Successfully fetched product")
+        return product
     
-    def add_products_to_list(self, grocery_list, products):
+    def add_products_to_list(self, grocery_list, product):
         """Add Kroger products to grocery list."""
         print("\n➕ Adding products to grocery list...")
         
         # Add products to the list object (demo.py pattern)
-        for product in products:
-            grocery_list.products_on_list.append((product, 1))  # Quantity 1
-            print(f"   ✅ Added: {product.name}")
+        grocery_list.products_on_list.append((product, 1))  # Quantity 1
+
         
         # Save updated list to database using db_utils
         if db_utils.add_grocery_list_to_db(grocery_list):
@@ -272,7 +263,8 @@ class GroceryOptimizationApp:
                 return
             
             # Step 4: Add Kroger products for testing
-            products = self.fetch_kroger_products_for_testing(5)
+            search = input("search for a product: ").strip()
+            products = self.fetch_kroger_products_for_testing(search)
             if products:
                 self.add_products_to_list(self.current_list, products)
             
