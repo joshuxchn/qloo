@@ -29,7 +29,7 @@ config = types.GenerateContentConfig(
 
 response = client.models.generate_content(
     model="gemini-2.5-flash", 
-    contents="schedule a meeting, then add to calendar. if Tim is running late, send him a reminder. otherwise, send a cheer. Let's say tim is not running late",
+    contents="schedule a meeting, then add to calendar. if Tim is running late, send him a reminder. otherwise, send a cheer. Let's say tim is not running a little late but isn't on time",
     config=config
 )
 
