@@ -1,8 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { loginUser, storeUser } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,23 +11,13 @@ import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { User, DollarSign, Heart, Globe, ArrowRight } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 
 export default function ProfilePage() {
-  const router = useRouter()
-  
-  // Form state
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [firstName, setFirstName] = useState("")
-  const [lastName, setLastName] = useState("")
   const [budget, setBudget] = useState([200])
   const [selectedDiets, setSelectedDiets] = useState<string[]>([])
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([])
   const [selectedAllergies, setSelectedAllergies] = useState<string[]>([])
-  
-  // Loading and error states
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
   const dietaryRestrictions = [
     "Vegetarian",
@@ -65,49 +53,26 @@ export default function ProfilePage() {
     }
   }
 
-  const handleSubmit = async () => {
-    // Basic validation
-    if (!email || !password) {
-      setError("Email and password are required")
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      // Call your backend to create/login user
-      const response = await loginUser(email, password)
-      
-      if (response.success && response.data) {
-        // Store user data locally
-        storeUser(response.data.user)
-        
-        // TODO: Save additional profile data (dietary restrictions, etc.) to backend
-        // This would require a new API endpoint like /api/profile/update
-        
-        // Redirect to dashboard
-        router.push('/dashboard')
-      } else {
-        setError(response.error || "Failed to create profile")
-      }
-    } catch (err) {
-      setError("Network error. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
       {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <User className="h-8 w-8 text-green-600" />
-            <h1 className="text-2xl font-bold text-gray-900">GroceryAI Profile</h1>
+      <header className="border-b bg-white/80 backdrop-blur-sm h-20">
+        <div className="container mx-auto px-4 h-full flex items-center justify-between">
+          <Link href="/" className="flex items-center space-x-3">
+            <Image
+              src="/images/tangerine-logo.png"
+              alt="Tangerine Logo"
+              width={60}
+              height={60}
+              className="rounded-full"
+            />
+            <h1 className="text-2xl font-bold text-stone-800">tangerine profile</h1>
           </Link>
-          <Button variant="outline" asChild>
+          <Button
+            variant="outline"
+            asChild
+            className="border-stone-300 text-stone-700 hover:bg-stone-50 bg-transparent"
+          >
             <Link href="/dashboard">Skip to Dashboard</Link>
           </Button>
         </div>
@@ -116,73 +81,52 @@ export default function ProfilePage() {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Create Your Taste Profile</h2>
-            <p className="text-lg text-gray-600">
+            <h2 className="text-3xl font-bold text-stone-800 mb-4">Create Your Taste Profile</h2>
+            <p className="text-lg text-stone-600">
               Help us understand your preferences to provide personalized grocery recommendations
             </p>
           </div>
 
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Basic Information */}
-            <Card>
+            <Card className="border border-stone-200 shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5 text-green-600" />
+                <CardTitle className="flex items-center gap-2 text-stone-800">
+                  <User className="h-5 w-5 text-orange-600" />
                   Basic Information
                 </CardTitle>
-                <CardDescription>Tell us about yourself and your household</CardDescription>
+                <CardDescription className="text-stone-600">Tell us about yourself and your household</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input 
-                      id="firstName" 
-                      placeholder="John" 
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                    />
+                    <Label htmlFor="firstName" className="text-stone-700">
+                      First Name
+                    </Label>
+                    <Input id="firstName" placeholder="John" className="border-stone-300" />
                   </div>
                   <div>
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input 
-                      id="lastName" 
-                      placeholder="Doe" 
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                    />
+                    <Label htmlFor="lastName" className="text-stone-700">
+                      Last Name
+                    </Label>
+                    <Input id="lastName" placeholder="Doe" className="border-stone-300" />
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="john@example.com" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="password">Password</Label>
-                  <Input 
-                    id="password" 
-                    type="password" 
-                    placeholder="Create a password" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
+                  <Label htmlFor="email" className="text-stone-700">
+                    Email
+                  </Label>
+                  <Input id="email" type="email" placeholder="john@example.com" className="border-stone-300" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="age">Age Range</Label>
+                    <Label htmlFor="age" className="text-stone-700">
+                      Age Range
+                    </Label>
                     <Select>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-stone-300">
                         <SelectValue placeholder="Select age range" />
                       </SelectTrigger>
                       <SelectContent>
@@ -195,9 +139,11 @@ export default function ProfilePage() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="household">Household Size</Label>
+                    <Label htmlFor="household" className="text-stone-700">
+                      Household Size
+                    </Label>
                     <Select>
-                      <SelectTrigger>
+                      <SelectTrigger className="border-stone-300">
                         <SelectValue placeholder="Select size" />
                       </SelectTrigger>
                       <SelectContent>
@@ -212,38 +158,42 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="location">Location (ZIP Code)</Label>
-                  <Input id="location" placeholder="12345" />
+                  <Label htmlFor="location" className="text-stone-700">
+                    Location (ZIP Code)
+                  </Label>
+                  <Input id="location" placeholder="12345" className="border-stone-300" />
                 </div>
               </CardContent>
             </Card>
 
             {/* Budget Preferences */}
-            <Card>
+            <Card className="border border-stone-200 shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-blue-600" />
+                <CardTitle className="flex items-center gap-2 text-stone-800">
+                  <DollarSign className="h-5 w-5 text-amber-600" />
                   Budget & Shopping Preferences
                 </CardTitle>
-                <CardDescription>Set your budget and shopping frequency</CardDescription>
+                <CardDescription className="text-stone-600">Set your budget and shopping frequency</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <Label className="text-base font-medium">Weekly Grocery Budget</Label>
+                  <Label className="text-base font-medium text-stone-700">Weekly Grocery Budget</Label>
                   <div className="mt-2">
                     <Slider value={budget} onValueChange={setBudget} max={500} min={50} step={25} className="w-full" />
-                    <div className="flex justify-between text-sm text-gray-500 mt-1">
+                    <div className="flex justify-between text-sm text-stone-500 mt-1">
                       <span>$50</span>
-                      <span className="font-medium text-green-600">${budget[0]}</span>
+                      <span className="font-medium text-orange-600">${budget[0]}</span>
                       <span>$500+</span>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="shopping-frequency">Shopping Frequency</Label>
+                  <Label htmlFor="shopping-frequency" className="text-stone-700">
+                    Shopping Frequency
+                  </Label>
                   <Select>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-stone-300">
                       <SelectValue placeholder="How often do you shop?" />
                     </SelectTrigger>
                     <SelectContent>
@@ -256,9 +206,11 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="priority">Shopping Priority</Label>
+                  <Label htmlFor="priority" className="text-stone-700">
+                    Shopping Priority
+                  </Label>
                   <Select>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-stone-300">
                       <SelectValue placeholder="What matters most?" />
                     </SelectTrigger>
                     <SelectContent>
@@ -274,23 +226,29 @@ export default function ProfilePage() {
             </Card>
 
             {/* Dietary Restrictions */}
-            <Card>
+            <Card className="border border-stone-200 shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-stone-800">
                   <Heart className="h-5 w-5 text-red-600" />
                   Dietary Restrictions & Health
                 </CardTitle>
-                <CardDescription>Select any dietary restrictions or health considerations</CardDescription>
+                <CardDescription className="text-stone-600">
+                  Select any dietary restrictions or health considerations
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-base font-medium mb-3 block">Dietary Restrictions</Label>
+                  <Label className="text-base font-medium mb-3 block text-stone-700">Dietary Restrictions</Label>
                   <div className="flex flex-wrap gap-2">
                     {dietaryRestrictions.map((diet) => (
                       <Badge
                         key={diet}
                         variant={selectedDiets.includes(diet) ? "default" : "outline"}
-                        className="cursor-pointer hover:bg-green-100"
+                        className={`cursor-pointer transition-colors ${
+                          selectedDiets.includes(diet)
+                            ? "bg-orange-500 text-white hover:bg-orange-600"
+                            : "border-stone-300 text-stone-600 hover:bg-orange-50"
+                        }`}
                         onClick={() => toggleSelection(diet, selectedDiets, setSelectedDiets)}
                       >
                         {diet}
@@ -300,13 +258,17 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <Label className="text-base font-medium mb-3 block">Allergies</Label>
+                  <Label className="text-base font-medium mb-3 block text-stone-700">Allergies</Label>
                   <div className="flex flex-wrap gap-2">
                     {commonAllergies.map((allergy) => (
                       <Badge
                         key={allergy}
                         variant={selectedAllergies.includes(allergy) ? "destructive" : "outline"}
-                        className="cursor-pointer hover:bg-red-100"
+                        className={`cursor-pointer transition-colors ${
+                          selectedAllergies.includes(allergy)
+                            ? "bg-red-500 text-white hover:bg-red-600"
+                            : "border-stone-300 text-stone-600 hover:bg-red-50"
+                        }`}
                         onClick={() => toggleSelection(allergy, selectedAllergies, setSelectedAllergies)}
                       >
                         {allergy}
@@ -316,34 +278,42 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="health-goals">Health Goals (Optional)</Label>
+                  <Label htmlFor="health-goals" className="text-stone-700">
+                    Health Goals (Optional)
+                  </Label>
                   <Textarea
                     id="health-goals"
                     placeholder="e.g., lose weight, build muscle, improve heart health..."
-                    className="mt-1"
+                    className="mt-1 border-stone-300"
                   />
                 </div>
               </CardContent>
             </Card>
 
             {/* Cultural Preferences */}
-            <Card>
+            <Card className="border border-stone-200 shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Globe className="h-5 w-5 text-purple-600" />
+                <CardTitle className="flex items-center gap-2 text-stone-800">
+                  <Globe className="h-5 w-5 text-amber-600" />
                   Cultural & Taste Preferences
                 </CardTitle>
-                <CardDescription>Help us understand your cultural background and taste preferences</CardDescription>
+                <CardDescription className="text-stone-600">
+                  Help us understand your cultural background and taste preferences
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label className="text-base font-medium mb-3 block">Favorite Cuisines</Label>
+                  <Label className="text-base font-medium mb-3 block text-stone-700">Favorite Cuisines</Label>
                   <div className="flex flex-wrap gap-2">
                     {cuisinePreferences.map((cuisine) => (
                       <Badge
                         key={cuisine}
                         variant={selectedCuisines.includes(cuisine) ? "default" : "outline"}
-                        className="cursor-pointer hover:bg-purple-100"
+                        className={`cursor-pointer transition-colors ${
+                          selectedCuisines.includes(cuisine)
+                            ? "bg-amber-500 text-white hover:bg-amber-600"
+                            : "border-stone-300 text-stone-600 hover:bg-amber-50"
+                        }`}
                         onClick={() => toggleSelection(cuisine, selectedCuisines, setSelectedCuisines)}
                       >
                         {cuisine}
@@ -353,14 +323,22 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="cultural-background">Cultural Background (Optional)</Label>
-                  <Input id="cultural-background" placeholder="e.g., Italian-American, Mexican, Indian..." />
+                  <Label htmlFor="cultural-background" className="text-stone-700">
+                    Cultural Background (Optional)
+                  </Label>
+                  <Input
+                    id="cultural-background"
+                    placeholder="e.g., Italian-American, Mexican, Indian..."
+                    className="border-stone-300"
+                  />
                 </div>
 
                 <div>
-                  <Label htmlFor="cooking-level">Cooking Experience</Label>
+                  <Label htmlFor="cooking-level" className="text-stone-700">
+                    Cooking Experience
+                  </Label>
                   <Select>
-                    <SelectTrigger>
+                    <SelectTrigger className="border-stone-300">
                       <SelectValue placeholder="How would you rate your cooking skills?" />
                     </SelectTrigger>
                     <SelectContent>
@@ -373,42 +351,33 @@ export default function ProfilePage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="favorite-foods">Favorite Foods & Ingredients</Label>
+                  <Label htmlFor="favorite-foods" className="text-stone-700">
+                    Favorite Foods & Ingredients
+                  </Label>
                   <Textarea
                     id="favorite-foods"
                     placeholder="Tell us about foods you love, ingredients you use often, or dishes you enjoy cooking..."
-                    className="mt-1"
+                    className="mt-1 border-stone-300"
                   />
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Error Display */}
-          {error && (
-            <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700 text-sm">{error}</p>
-            </div>
-          )}
-
           {/* Action Buttons */}
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-            <Button 
-              size="lg" 
-              className="text-lg px-8 py-3" 
-              onClick={handleSubmit}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>Loading...</>
-              ) : (
-                <>
-                  Create Profile & Continue
-                  <ArrowRight className="h-5 w-5 ml-2" />
-                </>
-              )}
+            <Button size="lg" className="text-lg px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white" asChild>
+              <Link href="/dashboard" className="flex items-center gap-2">
+                Create Profile & Continue
+                <ArrowRight className="h-5 w-5" />
+              </Link>
             </Button>
-            <Button size="lg" variant="outline" className="text-lg px-8 py-3 bg-transparent" asChild>
+            <Button
+              size="lg"
+              variant="outline"
+              className="text-lg px-8 py-3 bg-transparent border-stone-300 text-stone-700 hover:bg-stone-50"
+              asChild
+            >
               <Link href="/">Back to Home</Link>
             </Button>
           </div>

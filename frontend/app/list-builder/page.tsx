@@ -20,6 +20,7 @@ import {
   ArrowRight,
 } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 
 interface GeneratedItem {
   id: string
@@ -144,20 +145,30 @@ export default function ListBuilderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-amber-50">
       {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center space-x-2">
-            <Wand2 className="h-8 w-8 text-green-600" />
-            <h1 className="text-2xl font-bold text-gray-900">AI List Builder</h1>
+      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50 h-20">
+        <div className="container mx-auto px-4 h-full flex items-center justify-between">
+          <Link href="/dashboard" className="flex items-center space-x-3">
+            <Image
+              src="/images/tangerine-logo.png"
+              alt="Tangerine Logo"
+              width={60}
+              height={60}
+              className="rounded-full"
+            />
+            <h1 className="text-2xl font-bold text-stone-800">tangerine ai list builder</h1>
           </Link>
           <div className="flex items-center space-x-4">
-            <Button variant="outline" asChild>
+            <Button
+              variant="outline"
+              asChild
+              className="border-stone-300 text-stone-700 hover:bg-stone-50 bg-transparent"
+            >
               <Link href="/dashboard">Back to Dashboard</Link>
             </Button>
             {generatedItems.length > 0 && (
-              <Button asChild>
+              <Button asChild className="bg-orange-500 hover:bg-orange-600 text-white">
                 <Link href="/dashboard">
                   Add {generatedItems.length} Items
                   <ArrowRight className="h-4 w-4 ml-2" />
@@ -171,8 +182,8 @@ export default function ListBuilderPage() {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Build Your Grocery List</h2>
-            <p className="text-lg text-gray-600">
+            <h2 className="text-3xl font-bold text-stone-800 mb-4">Build Your Grocery List</h2>
+            <p className="text-lg text-stone-600">
               Use AI to generate optimized grocery lists from recipes, meal plans, or natural language
             </p>
           </div>
@@ -180,32 +191,55 @@ export default function ListBuilderPage() {
           <div className="grid lg:grid-cols-2 gap-8">
             {/* Input Methods */}
             <div className="space-y-6">
-              <Card>
+              <Card className="border border-stone-200 shadow-sm">
                 <CardHeader>
-                  <CardTitle>Choose Your Input Method</CardTitle>
-                  <CardDescription>Select how you&apos;d like to build your grocery list</CardDescription>
+                  <CardTitle className="text-stone-800">Choose Your Input Method</CardTitle>
+                  <CardDescription className="text-stone-600">
+                    Select how you'd like to build your grocery list
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs value={inputMethod} onValueChange={(value) => setInputMethod(value as "manual" | "ai" | "recipe" | "photo")}>
-                    <TabsList className="grid w-full grid-cols-4">
-                      <TabsTrigger value="manual">Manual</TabsTrigger>
-                      <TabsTrigger value="ai">AI Prompt</TabsTrigger>
-                      <TabsTrigger value="recipe">Recipe</TabsTrigger>
-                      <TabsTrigger value="photo">Photo</TabsTrigger>
+                  <Tabs value={inputMethod} onValueChange={(value) => setInputMethod(value as any)}>
+                    <TabsList className="grid w-full grid-cols-4 bg-stone-100">
+                      <TabsTrigger
+                        value="manual"
+                        className="text-stone-600 data-[state=active]:bg-white data-[state=active]:text-stone-800"
+                      >
+                        Manual
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="ai"
+                        className="text-stone-600 data-[state=active]:bg-white data-[state=active]:text-stone-800"
+                      >
+                        AI Prompt
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="recipe"
+                        className="text-stone-600 data-[state=active]:bg-white data-[state=active]:text-stone-800"
+                      >
+                        Recipe
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="photo"
+                        className="text-stone-600 data-[state=active]:bg-white data-[state=active]:text-stone-800"
+                      >
+                        Photo
+                      </TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="manual" className="space-y-4">
                       <div>
-                        <h3 className="font-medium mb-2">Add Items Manually</h3>
-                        <p className="text-sm text-gray-600 mb-4">Type grocery items one by one</p>
+                        <h3 className="font-medium mb-2 text-stone-800">Add Items Manually</h3>
+                        <p className="text-sm text-stone-600 mb-4">Type grocery items one by one</p>
                         <div className="flex gap-2">
                           <Input
                             placeholder="Enter grocery item (e.g., 'milk', 'bananas', 'chicken')"
                             value={manualItem}
                             onChange={(e) => setManualItem(e.target.value)}
                             onKeyPress={(e) => e.key === "Enter" && handleManualAdd()}
+                            className="border-stone-300"
                           />
-                          <Button onClick={handleManualAdd}>
+                          <Button onClick={handleManualAdd} className="bg-orange-500 hover:bg-orange-600">
                             <Plus className="h-4 w-4" />
                           </Button>
                         </div>
@@ -214,20 +248,20 @@ export default function ListBuilderPage() {
 
                     <TabsContent value="ai" className="space-y-4">
                       <div>
-                        <h3 className="font-medium mb-2">AI-Powered Generation</h3>
-                        <p className="text-sm text-gray-600 mb-4">
+                        <h3 className="font-medium mb-2 text-stone-800">AI-Powered Generation</h3>
+                        <p className="text-sm text-stone-600 mb-4">
                           Describe what you want to cook or eat, and AI will generate a grocery list
                         </p>
                         <Textarea
                           placeholder="e.g., 'I want to make healthy meals for a family of 4 this week, including chicken dinners and vegetarian lunches'"
                           value={aiPrompt}
                           onChange={(e) => setAiPrompt(e.target.value)}
-                          className="min-h-[100px]"
+                          className="min-h-[100px] border-stone-300"
                         />
                         <Button
                           onClick={handleAIGenerate}
                           disabled={isGenerating || !aiPrompt.trim()}
-                          className="w-full mt-2"
+                          className="w-full mt-2 bg-orange-500 hover:bg-orange-600"
                         >
                           {isGenerating ? (
                             <>
@@ -246,18 +280,18 @@ export default function ListBuilderPage() {
 
                     <TabsContent value="recipe" className="space-y-4">
                       <div>
-                        <h3 className="font-medium mb-2">Recipe Analysis</h3>
-                        <p className="text-sm text-gray-600 mb-4">Paste a recipe and we&apos;ll extract the ingredients</p>
+                        <h3 className="font-medium mb-2 text-stone-800">Recipe Analysis</h3>
+                        <p className="text-sm text-stone-600 mb-4">Paste a recipe and we'll extract the ingredients</p>
                         <Textarea
                           placeholder="Paste your recipe here..."
                           value={recipe}
                           onChange={(e) => setRecipe(e.target.value)}
-                          className="min-h-[120px]"
+                          className="min-h-[120px] border-stone-300"
                         />
                         <Button
                           onClick={handleRecipeAnalysis}
                           disabled={isGenerating || !recipe.trim()}
-                          className="w-full mt-2"
+                          className="w-full mt-2 bg-orange-500 hover:bg-orange-600"
                         >
                           {isGenerating ? (
                             <>
@@ -276,14 +310,14 @@ export default function ListBuilderPage() {
 
                     <TabsContent value="photo" className="space-y-4">
                       <div>
-                        <h3 className="font-medium mb-2">Photo Recognition</h3>
-                        <p className="text-sm text-gray-600 mb-4">
+                        <h3 className="font-medium mb-2 text-stone-800">Photo Recognition</h3>
+                        <p className="text-sm text-stone-600 mb-4">
                           Upload a photo of a recipe, meal plan, or handwritten list
                         </p>
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                          <Camera className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-600 mb-4">Drag and drop an image here, or click to browse</p>
-                          <Button variant="outline" disabled>
+                        <div className="border-2 border-dashed border-stone-300 rounded-lg p-8 text-center">
+                          <Camera className="h-12 w-12 text-stone-400 mx-auto mb-4" />
+                          <p className="text-stone-600 mb-4">Drag and drop an image here, or click to browse</p>
+                          <Button variant="outline" disabled className="border-stone-300 text-stone-700 bg-transparent">
                             <Upload className="h-4 w-4 mr-2" />
                             Upload Photo (Coming Soon)
                           </Button>
@@ -295,16 +329,18 @@ export default function ListBuilderPage() {
               </Card>
 
               {/* Quick Templates */}
-              <Card>
+              <Card className="border border-stone-200 shadow-sm">
                 <CardHeader>
-                  <CardTitle>Quick Templates</CardTitle>
-                  <CardDescription>Start with pre-made templates for common meal plans</CardDescription>
+                  <CardTitle className="text-stone-800">Quick Templates</CardTitle>
+                  <CardDescription className="text-stone-600">
+                    Start with pre-made templates for common meal plans
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-3">
                     <Button
                       variant="outline"
-                      className="h-auto p-4 flex flex-col items-start bg-transparent"
+                      className="h-auto p-4 flex flex-col items-start bg-transparent border-stone-300 text-stone-700 hover:bg-orange-50"
                       onClick={() =>
                         setAiPrompt(
                           "Weekly meal prep for healthy eating, including proteins, vegetables, and whole grains",
@@ -312,34 +348,34 @@ export default function ListBuilderPage() {
                       }
                     >
                       <span className="font-medium">Meal Prep</span>
-                      <span className="text-xs text-gray-500">Healthy weekly prep</span>
+                      <span className="text-xs text-stone-500">Healthy weekly prep</span>
                     </Button>
 
                     <Button
                       variant="outline"
-                      className="h-auto p-4 flex flex-col items-start bg-transparent"
+                      className="h-auto p-4 flex flex-col items-start bg-transparent border-stone-300 text-stone-700 hover:bg-orange-50"
                       onClick={() => setAiPrompt("Family dinner ingredients for a week, kid-friendly meals")}
                     >
                       <span className="font-medium">Family Dinners</span>
-                      <span className="text-xs text-gray-500">Kid-friendly meals</span>
+                      <span className="text-xs text-stone-500">Kid-friendly meals</span>
                     </Button>
 
                     <Button
                       variant="outline"
-                      className="h-auto p-4 flex flex-col items-start bg-transparent"
+                      className="h-auto p-4 flex flex-col items-start bg-transparent border-stone-300 text-stone-700 hover:bg-orange-50"
                       onClick={() => setAiPrompt("Vegetarian meals for the week with high protein options")}
                     >
                       <span className="font-medium">Vegetarian</span>
-                      <span className="text-xs text-gray-500">Plant-based meals</span>
+                      <span className="text-xs text-stone-500">Plant-based meals</span>
                     </Button>
 
                     <Button
                       variant="outline"
-                      className="h-auto p-4 flex flex-col items-start bg-transparent"
+                      className="h-auto p-4 flex flex-col items-start bg-transparent border-stone-300 text-stone-700 hover:bg-orange-50"
                       onClick={() => setAiPrompt("Budget-friendly grocery list for basic meals under $50")}
                     >
                       <span className="font-medium">Budget Meals</span>
-                      <span className="text-xs text-gray-500">Under $50</span>
+                      <span className="text-xs text-stone-500">Under $50</span>
                     </Button>
                   </div>
                 </CardContent>
@@ -348,17 +384,23 @@ export default function ListBuilderPage() {
 
             {/* Generated Items */}
             <div className="space-y-6">
-              <Card>
+              <Card className="border border-stone-200 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
+                  <CardTitle className="flex items-center justify-between text-stone-800">
                     Generated Items
-                    {generatedItems.length > 0 && <Badge variant="secondary">{generatedItems.length} items</Badge>}
+                    {generatedItems.length > 0 && (
+                      <Badge variant="secondary" className="bg-stone-100 text-stone-600">
+                        {generatedItems.length} items
+                      </Badge>
+                    )}
                   </CardTitle>
-                  <CardDescription>Review and modify your AI-generated grocery list</CardDescription>
+                  <CardDescription className="text-stone-600">
+                    Review and modify your AI-generated grocery list
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {generatedItems.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500">
+                    <div className="text-center py-12 text-stone-400">
                       <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p>No items generated yet.</p>
                       <p className="text-sm">Use one of the input methods to get started!</p>
@@ -366,26 +408,30 @@ export default function ListBuilderPage() {
                   ) : (
                     <div className="space-y-4">
                       {generatedItems.map((item) => (
-                        <div key={item.id} className="p-4 border rounded-lg hover:bg-gray-50">
+                        <div key={item.id} className="p-4 border border-stone-200 rounded-lg hover:bg-stone-50">
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <h4 className="font-medium text-gray-900">{item.name}</h4>
-                                <Badge variant="outline" className="text-xs">
+                                <h4 className="font-medium text-stone-800">{item.name}</h4>
+                                <Badge variant="outline" className="text-xs border-stone-300 text-stone-600">
                                   {item.category}
                                 </Badge>
                                 <div className="flex items-center gap-1">
-                                  <CheckCircle className="h-3 w-3 text-green-500" />
-                                  <span className="text-xs text-gray-600">{item.confidence}% match</span>
+                                  <CheckCircle className="h-3 w-3 text-emerald-500" />
+                                  <span className="text-xs text-stone-600">{item.confidence}% match</span>
                                 </div>
                               </div>
 
                               {item.alternatives.length > 0 && (
                                 <div className="mt-2">
-                                  <p className="text-xs text-gray-600 mb-1">Alternatives:</p>
+                                  <p className="text-xs text-stone-600 mb-1">Alternatives:</p>
                                   <div className="flex flex-wrap gap-1">
                                     {item.alternatives.slice(0, 3).map((alt, index) => (
-                                      <Badge key={index} variant="secondary" className="text-xs">
+                                      <Badge
+                                        key={index}
+                                        variant="secondary"
+                                        className="text-xs bg-stone-100 text-stone-600"
+                                      >
                                         {alt}
                                       </Badge>
                                     ))}
@@ -412,15 +458,15 @@ export default function ListBuilderPage() {
 
               {/* AI Processing Status */}
               {isGenerating && (
-                <Card className="border-blue-200 bg-blue-50">
+                <Card className="border-orange-200 bg-orange-50">
                   <CardContent className="p-6">
                     <div className="flex items-center gap-3">
                       <div className="animate-spin">
-                        <Sparkles className="h-6 w-6 text-blue-600" />
+                        <Sparkles className="h-6 w-6 text-orange-600" />
                       </div>
                       <div>
-                        <h4 className="font-medium text-blue-900">AI Processing</h4>
-                        <p className="text-sm text-blue-700">
+                        <h4 className="font-medium text-orange-800">AI Processing</h4>
+                        <p className="text-sm text-orange-700">
                           Analyzing your request and generating optimized grocery items...
                         </p>
                       </div>
@@ -431,16 +477,20 @@ export default function ListBuilderPage() {
 
               {/* Action Buttons */}
               {generatedItems.length > 0 && (
-                <Card>
+                <Card className="border border-stone-200 shadow-sm">
                   <CardContent className="p-6">
                     <div className="flex flex-col gap-3">
-                      <Button size="lg" className="w-full" asChild>
+                      <Button size="lg" className="w-full bg-orange-500 hover:bg-orange-600 text-white" asChild>
                         <Link href="/dashboard">
                           <CheckCircle className="h-5 w-5 mr-2" />
                           Add {generatedItems.length} Items to List
                         </Link>
                       </Button>
-                      <Button variant="outline" size="lg" className="w-full bg-transparent">
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="w-full bg-transparent border-stone-300 text-stone-700 hover:bg-stone-50"
+                      >
                         <Wand2 className="h-5 w-5 mr-2" />
                         Optimize with AI
                       </Button>
