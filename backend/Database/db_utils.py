@@ -6,7 +6,7 @@ from .list import GroceryList
 from .product import Product
 from .user import User
 DB_NAME = "grocery_app"
-DB_USER = "joshuachen" # Current user
+DB_USER = "samavramov" # Current user
 DB_PASSWORD = "" # Leave empty if you don't have a password set for your user
 DB_HOST = "localhost"
 DB_PORT = "5432"
