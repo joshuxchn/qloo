@@ -6,16 +6,17 @@
             <span class="text-white font-bold text-lg">🍊</span>
           <h1 class="text-xl font-bold text-stone-800">tangerine</h1>
         </button>
-        <div class="flex items-center space-x-3">
+        <div class="flex items-center space-x-4">
           <button
             @click="redirectToProfile"
             class="px-3 py-1 text-sm text-stone-600 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
           >
-            profile
+            Profile
           </button>
-        <button 
-          @click="redirectToNewList"
-          class="px-3 py-1 text-sm border border-stone-300 text-stone-700 hover:bg-stone-50 bg-transparent rounded transition-colors">
+          <button 
+            @click="signOut"
+            class="px-3 py-1 text-sm border border-stone-300 text-stone-700 hover:bg-stone-50 bg-transparent rounded transition-colors"
+          >
             Sign Out
           </button>
         </div>
@@ -94,7 +95,9 @@
 
         <div v-if="activeTab === 'list'" class="bg-white border-0 shadow-sm rounded-lg">
           <div class="p-6 border-b">
-            <h3 class="text-lg font-medium text-stone-800"><span >{{ currentUser?.username || 'Guest' }}</span>'s grocery list</h3>
+             <span class="text-sm text-stone-600 hidden sm:block">
+            Welcome, <span class="font-semibold">{{ currentUser?.firstName || currentUser?.username || 'Guest' }}</span>
+          </span>
           </div>
           <div class="p-6">
             <div class="flex gap-2 mb-6">
