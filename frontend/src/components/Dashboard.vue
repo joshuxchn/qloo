@@ -19,7 +19,7 @@
             @click="redirectToNewList"
             class="px-3 py-1 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors"
           >
-            new list
+            home
           </button>
         </div>
       </div>
