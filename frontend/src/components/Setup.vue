@@ -6,10 +6,8 @@
       <div class="container mx-auto px-4 h-full flex items-center justify-between">
         <!-- Clicking the logo takes the user back to the landing page -->
         <button @click="goBack" class="flex items-center space-x-3">
-          <div class="w-[60px] h-[60px] bg-orange-500 rounded-full flex items-center justify-center">
-            <span class="text-white font-bold text-lg">T</span>
-          </div>
-          <h1 class="text-2xl font-bold text-stone-800">tangerine profile</h1>
+          <span class="text-white font-bold text-lg">🍊</span>
+          <h1 class="text-2xl font-bold text-stone-800">tangerine </h1>
         </button>
         <!-- Button to skip profile creation and go to the dashboard -->
         <button

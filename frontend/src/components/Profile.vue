@@ -5,9 +5,7 @@
     <header class="border-b bg-white/80 backdrop-blur-sm h-20">
       <div class="container mx-auto px-4 h-full flex items-center justify-between">
         <button @click="$emit('set-current-view', 'dashboard')" class="flex items-center space-x-3">
-          <div class="w-[60px] h-[60px] bg-orange-500 rounded-full flex items-center justify-center">
-            <span class="text-white font-bold text-lg">T</span>
-          </div>
+          <span class="text-white font-bold text-lg">🍊</span>
           <h1 class="text-2xl font-bold text-stone-800">tangerine</h1>
         </button>
         <div class="flex items-center space-x-3">

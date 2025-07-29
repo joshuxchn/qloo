@@ -4,9 +4,7 @@
       <header class="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50 h-20">
         <div class="container mx-auto px-4 h-full flex items-center justify-between">
           <div class="flex items-center space-x-3">
-            <div class="w-[75px] h-[75px] bg-orange-500 rounded-full flex items-center justify-center">
-              <span class="text-white font-bold text-xl">T</span>
-            </div>
+            <span class="text-white font-bold text-lg">🍊</span>
             <h1 class="text-2xl font-bold text-stone-800">tangerine</h1>
           </div>
           <nav class="hidden md:flex items-center space-x-6">
@@ -50,9 +48,6 @@
               class="text-lg px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors"
             >
               start building lists
-            </button>
-            <button class="text-lg px-8 py-3 bg-transparent border border-stone-300 text-stone-700 hover:bg-stone-50 rounded transition-colors">
-              learn more
             </button>
           </div>
         </div>

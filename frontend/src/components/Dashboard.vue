@@ -3,9 +3,7 @@
     <header class="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50 h-20">
       <div class="container mx-auto px-4 h-full flex items-center justify-between">
         <button @click="$emit('set-current-view', 'landing')" class="flex items-center space-x-3">
-          <div class="w-[60px] h-[60px] bg-orange-500 rounded-full flex items-center justify-center">
-            <span class="text-white font-bold text-lg">T</span>
-          </div>
+            <span class="text-white font-bold text-lg">🍊</span>
           <h1 class="text-xl font-bold text-stone-800">tangerine</h1>
         </button>
         <div class="flex items-center space-x-3">
@@ -13,13 +11,12 @@
             @click="redirectToProfile"
             class="px-3 py-1 text-sm text-stone-600 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
           >
-            profile: <span class="font-semibold">{{ userProfile.username }}</span>
+            profile
           </button>
-          <button
-            @click="redirectToNewList"
-            class="px-3 py-1 text-sm bg-orange-500 hover:bg-orange-600 text-white rounded transition-colors"
-          >
-            home
+        <button 
+          @click="redirectToNewList"
+          class="px-3 py-1 text-sm border border-stone-300 text-stone-700 hover:bg-stone-50 bg-transparent rounded transition-colors">
+            Sign Out
           </button>
         </div>
       </div>
@@ -97,7 +94,7 @@
 
         <div v-if="activeTab === 'list'" class="bg-white border-0 shadow-sm rounded-lg">
           <div class="p-6 border-b">
-            <h3 class="text-lg font-medium text-stone-800">grocery list</h3>
+            <h3 class="text-lg font-medium text-stone-800"><span >{{ currentUser?.username || 'Guest' }}</span>'s grocery list</h3>
           </div>
           <div class="p-6">
             <div class="flex gap-2 mb-6">
@@ -248,19 +245,19 @@
           <div class="bg-white border-0 shadow-sm rounded-lg">
             <div class="p-4 border-b">
               <h4 class="text-sm font-medium text-stone-800">budget</h4>
-              <p class="text-xs text-stone-600">weekly limit: ${{ userProfile.budget }}</p>
+              <p class="text-xs text-stone-600">weekly limit: ${{ currentUser?.budget || 0 }}</p>
             </div>
             <div class="p-4">
               <div class="space-y-4">
                 <div>
                   <div class="flex justify-between text-xs mb-2">
                     <span class="text-stone-600">current</span>
-                    <span class="text-stone-600">${{ totalCost.toFixed(2) }} / ${{ userProfile.budget }}</span>
+                    <span class="text-stone-600">${{ totalCost.toFixed(2) }} / ${{ currentUser?.budget || 0 }}</span>
                   </div>
                   <div class="w-full bg-stone-200 rounded-full h-1">
                     <div
                       class="bg-orange-500 h-1 rounded-full transition-all"
-                      :style="{ width: `${Math.min((totalCost / userProfile.budget) * 100, 100)}%` }"
+                      :style="{ width: `${Math.min((totalCost / (currentUser?.budget || 1)) * 100, 100)}%` }"
                     ></div>
                   </div>
                 </div>
@@ -268,7 +265,7 @@
                 <div class="grid grid-cols-2 gap-3 text-center">
                   <div class="p-3 bg-emerald-50 rounded-lg">
                     <div class="text-sm font-medium text-emerald-700">
-                      ${{ (userProfile.budget - totalCost).toFixed(2) }}
+                      ${{ ((currentUser?.budget || 0) - totalCost).toFixed(2) }}
                     </div>
                     <div class="text-xs text-stone-600">remaining</div>
                   </div>
@@ -336,18 +333,10 @@
 </template>
 
 <script>
+import { userStore } from '../stores/userStore.js';
+
 export default {
   name: 'Dashboard',
-  props: {
-    userProfile: {
-      type: Object,
-      required: false,
-      // 👇 MODIFIED PROP DEFAULT
-      // Added a default username to prevent errors before data loads.
-      default: () => ({ budget: 0, username: 'Guest' })
-      // END MODIFICATION
-    }
-  },
   data() {
     return {
       activeTab: 'list',
@@ -401,6 +390,9 @@ export default {
     };
   },
   computed: {
+    currentUser() {
+      return userStore.user;
+    },
     totalCost() {
       return this.groceryList.reduce((sum, item) => sum + item.price, 0);
     },
@@ -414,11 +406,15 @@ export default {
     }
   },
   methods: {
+    signOut() {
+      userStore.logout();
+      this.$router.push('/login');
+    },
     redirectToProfile() {
-      window.location.href = '/profile';
+      this.$router.push('/profile');
     },
     redirectToNewList() {
-      window.location.href = '/newList';
+      this.$router.push('/newList');
     },
     addItem() {
       if (this.newItem.trim()) {

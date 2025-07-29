@@ -11,7 +11,7 @@
 <script>
 import { onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { userStore } from './userStore'; // Fixed relative path
+import { userStore } from '../stores/userStore.js';
 
 export default {
   name: 'AuthCallback',

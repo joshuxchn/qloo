@@ -4,9 +4,7 @@
     <header class="border-b bg-white/80 backdrop-blur-sm h-20">
       <div class="container mx-auto px-4 h-full flex items-center justify-between">
         <button @click="goBack" class="flex items-center space-x-3">
-          <div class="w-[60px] h-[60px] bg-orange-500 rounded-full flex items-center justify-center">
-            <span class="text-white font-bold text-lg">T</span>
-          </div>
+          <span class="text-white font-bold text-lg">🍊</span>
           <h1 class="text-2xl font-bold text-stone-800">tangerine</h1>
         </button>
         <div class="flex items-center space-x-4">
@@ -33,7 +31,7 @@
               class="w-full mb-4 flex items-center justify-center py-3 px-4 rounded-lg font-semibold shadow-md transition-all duration-200 bg-white text-stone-700 hover:bg-stone-50 border border-stone-300">
               <img src="https://developers.google.com/identity/images/g-logo.png" class="w-5 h-5 mr-3"
                 alt="Google logo" />
-              Login / Create Account
+              Sign In
             </button>
 
             <div class="mt-6 text-center">
