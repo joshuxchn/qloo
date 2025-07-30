@@ -68,9 +68,6 @@ def qloo_insights(filter_type: str, take: int, **signals) -> Optional[Dict]:
         **signals
     }
     
-    print(f"Making request to: {QLOO_BASE_URL}/v2/insights")
-    print(f"Params: {params}")
-    
     response = httpx.get(
         f"{QLOO_BASE_URL}/v2/insights",
         params=params,
@@ -90,7 +87,7 @@ def get_food_recommendations(user_profile: UserProfile, take: int = 50) -> Optio
     if not user_profile.favorite_tags:
         return []
     
-    print(f"Getting food recommendations based on: {user_profile.favorite_tags}")
+
     
     # Build all Qloo signals with correct formats
     signals = build_qloo_signals(user_profile, bias_trends="medium")
@@ -101,7 +98,7 @@ def get_food_recommendations(user_profile: UserProfile, take: int = 50) -> Optio
         all_tags = ([existing_tags] if existing_tags else []) + user_profile.dietary_restrictions
         signals["signal.interests.tags"] = ",".join(all_tags)
     
-    print("Sending signals:", signals)
+
     
     # Call Qloo with working signals only
     response = qloo_insights(
@@ -117,89 +114,27 @@ def get_food_recommendations(user_profile: UserProfile, take: int = 50) -> Optio
         print("No specialty dish recommendations found from API")
         return []
     
-    print(f"Found {len(tags)} specialty dish recommendations from Qloo's taste graph")
-    
-    # Debug: inspect the returned affinities to see what signals are being used
-    print("Debug affinities for first 5 tags:")
-    for t in tags[:5]:
-        print(f" • {t.get('name', 'Unknown')}: {t.get('query', {})}")
+
+
     
     return tags
 
 
-def get_similar_entities(
-    user_profile: UserProfile,
-    seed_entity_urn: str,
-    take: int = 10
-) -> List[Dict]:
-    """
-    Return entities similar to a given seed entity, incorporating all user signals.
-    
-    - seed_entity_urn: A Qloo URN like "urn:entity:place:1234" or "urn:entity:movie:ABCD".
-    - Uses filter.entities to seed similarity, plus signal.* params from build_qloo_signals.
-    """
-    print(f"Getting entities similar to {seed_entity_urn} based on user preferences")
-    
-    # 1) Derive filter.type from the URN (e.g. "urn:entity:place")
-    parts = seed_entity_urn.split(":")
-    if len(parts) < 4 or parts[0] != "urn" or parts[1] != "entity":
-        raise ValueError(f"Invalid entity URN: {seed_entity_urn}")
-    filter_type = f"urn:entity:{parts[2]}"
-    
-    # 2) Build all of the user's signals (interests, demographics, location, trends)
-    signals = build_qloo_signals(user_profile)
-    
-    print("Sending signals for similar entities:", signals)
-    print(f"Using filter.entities: {seed_entity_urn}")
-    print(f"Using filter.type: {filter_type}")
-    
-    # 3) Fire the Insights call, seeding with filter.entities
-    try:
-        response = qloo_insights(
-            filter_type=filter_type,
-            take=take,
-            **{"filter.entities": seed_entity_urn},   # seed similarity
-            **signals
-        )
-    except Exception as e:
-        print(f"Error calling insights for similar entities: {e}")
-        return []
-    
-    if not response or "entities" not in response.get("results", {}):
-        print("No similar entities found")
-        return []
-    
-    entities = response["results"]["entities"]
-    print(f"Found {len(entities)} similar entities")
-    
-    # Debug: show similarity scores
-    print("Debug entity similarities:")
-    for i, entity in enumerate(entities[:5]):
-        name = entity.get("name", "Unknown")
-        affinity = entity.get("query", {}).get("affinity", 0)
-        print(f" • {name}: {affinity:.3f}")
-    
-    # 4) Return the raw entities (with name, entity_id, popularity, query.affinity, etc.)
-    return entities
-
-
 def food_recommender_workflow(user_profile: UserProfile) -> Dict:
     """Complete food recommendation workflow using API-driven recommendations"""
-    print("=== Starting Food Recommendation Workflow ===")
-    print("Getting food recommendations directly from Qloo API")
+
     
     # Step 1: Signal Collection (already done in user_profile)
-    print(f"User Profile: Age {user_profile.age}, City: {user_profile.city}")
-    print(f"Food Interests: {user_profile.favorite_tags}")
+
     
     # Step 2: Get food recommendations from API
-    print("\n--- Getting Food Recommendations from API ---")
+
     food_recommendations = get_food_recommendations(user_profile, take=50)
     
     if not food_recommendations:
         return {"error": "No food recommendations found"}
     
-    print(f"Food recommendations: {[t.get('name', '') for t in food_recommendations[:8]]}")
+
     
     # Step 3: Package results
     results = {
@@ -252,63 +187,74 @@ def parse_recommendations(rec_data):
     
     return "\n".join(parsed)
 
+def get_parsed_recommendations(user_profile: UserProfile) -> List[Dict]:
+    """
+    Get parsed recommendations from start to finish and return as a clean list.
+    
+    Args:
+        user_profile: UserProfile object with user preferences
+        
+    Returns:
+        List of dictionaries containing parsed recommendation data, or empty list if error
+    """
+    # Run the complete workflow
+    results = food_recommender_workflow(user_profile)
+    
+    # Handle error case
+    if "error" in results:
+        print(f"Error getting recommendations: {results['error']}")
+        return []
+    
+    # Extract and return the food recommendations list
+    return results.get("food_recommendations", [])
+
 def print_food_workflow_results(results: Dict):
     """Pretty print food workflow results"""
     if "error" in results:
         print(f"Error: {results['error']}")
         return
         
-    print("=== FOOD RECOMMENDATION RESULTS ===")
     
     profile = results["user_profile"]
     print(f"User: Age {profile['age']}, City: {profile['city']}")
     print(f"Food Interests: {', '.join(profile['food_interests']) if profile['food_interests'] else 'None specified'}")
     
-    print("\n--- FOOD RECOMMENDATIONS ---")
+
     for i, food in enumerate(results["food_recommendations"], 1):
         print(f"{i}. {food['name']} (Affinity: {food['affinity']:.3f}, Weight: {food['weight']:.3f})")
 
 if __name__ == "__main__":
-    print(f"Using API Key: {QLOO_API_KEY[:10]}..." if QLOO_API_KEY else "No API Key found")
+
     
     # Create test user profile with food preferences
     test_user = UserProfile(
-        age=15,
+        age=25,
         gender="female", 
         city="Los Angeles",
         favorite_tags=["urn:tag:genre:place:restaurant:chinese", "urn:tag:genre:place:restaurant:italian"],
         audiences=["foodies"],
-        dietary_restrictions=[]  # Remove dietary restrictions for testing
+        dietary_restrictions=[]
     )
     
-    print("\n=== TESTING FOOD RECOMMENDER WORKFLOW ===")
-    results = food_recommender_workflow(test_user)
-    print_food_workflow_results(results)
+  
     
-    print("\n" + "="*50)
-    print("=== TESTING SIMILAR ENTITY RECOMMENDATIONS ===")
+    recommendations = get_parsed_recommendations(test_user)
     
-    # Test 1: Similar cuisine tags based on user preferences
-    reference_cuisine = "urn:tag:genre:place:restaurant:chinese"
-    
-    print(f"Finding cuisine tags similar to Chinese restaurants for this user...")
-    similar_cuisines = get_similar_entities(
-        user_profile=test_user,
-        entity_id=reference_cuisine,
-        entity_type="urn:tag",
-        take=5
-    )
-    
-    if similar_cuisines:
-        print("\n--- CUISINE TAGS SIMILAR TO CHINESE RESTAURANTS ---")
-        for i, tag in enumerate(similar_cuisines, 1):
-            name = tag.get("name", "Unknown")
-            affinity = tag.get("query", {}).get("affinity", 0)
-            tag_id = tag.get("tag_id", tag.get("id", "No ID"))
-            print(f"{i}. {name} (Affinity: {affinity:.3f})")
-            print(f"   Tag ID: {tag_id}")
+    if recommendations:
+        print(f"\nSuccessfully retrieved {len(recommendations)} recommendations!")
+        print("\nTop 10 recommendations:")
+        for i, rec in enumerate(recommendations[:10], 1):
+            print(f"{i:2d}. {rec['name']}")
+            print(f"    Tag ID: {rec['tag_id']}")
+            print(f"    Affinity: {rec['affinity']:.3f}")
+            print(f"    Weight: {rec['weight']}")
+            print()
+        
+        print("\nJust the food names (first 15):")
+        food_names = [rec['name'] for rec in recommendations[:15]]
+        for name in food_names:
+            print(f"• {name}")
+            
     else:
-        print("No similar cuisine tags found")
-    
-    print("\n" + "-"*30)
+        print("No recommendations found or error occurred")
     
