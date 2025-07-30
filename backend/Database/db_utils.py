@@ -51,7 +51,32 @@ def create_tables():
                     gender TEXT
                 );
             """)
-            # ... other table creation statements ...
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS grocery_lists (
+                    list_id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+                    name TEXT NOT NULL DEFAULT 'My Grocery List',
+                    timestamp TIMESTAMP WITH TIME ZONE NOT NULL
+                );
+            """)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS grocery_list_items (
+                    list_item_id SERIAL PRIMARY KEY,
+                    list_id TEXT NOT NULL REFERENCES grocery_lists(list_id) ON DELETE CASCADE,
+                    name TEXT NOT NULL,
+                    price NUMERIC(10, 2),
+                    promo_price NUMERIC(10, 2),
+                    fulfillment_type TEXT,
+                    brand TEXT,
+                    inventory TEXT,
+                    size TEXT,
+                    last_updated TIMESTAMP WITH TIME ZONE,
+                    location_id TEXT,
+                    upc TEXT,
+                    quantity INTEGER NOT NULL DEFAULT 1,
+                    category TEXT
+                );
+            """)
         conn.commit()
         print("✅ Tables ensured to exist.")
     except psycopg2.Error as e:
@@ -143,6 +168,114 @@ def update_user_details(user_obj):
         return True
     except psycopg2.Error as e:
         print(f"Error updating user '{user_obj.username}': {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def add_grocery_list_to_db(grocery_list_obj):
+    """Saves a new grocery list and its detailed items to the database."""
+    conn = get_db_connection()
+    if conn is None: return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO grocery_lists (list_id, user_id, name, timestamp)
+                VALUES (%s, %s, %s, %s);
+            """, (grocery_list_obj.list_id, grocery_list_obj.user_id, grocery_list_obj.name, grocery_list_obj.timestamp))
+
+            for product, quantity in grocery_list_obj.products_on_list:
+                cur.execute("""
+                    INSERT INTO grocery_list_items (
+                        list_id, name, price, promo_price, fulfillment_type, brand,
+                        inventory, size, last_updated, location_id, upc, quantity, category
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                """, (
+                    grocery_list_obj.list_id, product.name, product.price, product.promo_price,
+                    product.fulfillment_type, product.brand, product.inventory, product.size,
+                    product.last_updated, product.location_ID, product.upc, quantity, product.category
+                ))
+        
+        conn.commit()
+        print(f"✅ Grocery list '{grocery_list_obj.name}' saved successfully.")
+        return True
+    except psycopg2.Error as e:
+        print(f"Error adding grocery list: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def get_all_lists_for_user(user_id):
+    """Retrieves all grocery lists and their items for a given user."""
+    conn = get_db_connection()
+    if conn is None: return []
+    
+    lists = []
+    try:
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute("SELECT * FROM grocery_lists WHERE user_id = %s ORDER BY timestamp DESC;", (user_id,))
+            list_records = cur.fetchall()
+
+            for list_record in list_records:
+                cur.execute("SELECT * FROM grocery_list_items WHERE list_id = %s;", (list_record['list_id'],))
+                item_records = cur.fetchall()
+                items = [dict(item) for item in item_records]
+                list_data = dict(list_record)
+                list_data['items'] = items
+                lists.append(list_data)
+        return lists
+    except psycopg2.Error as e:
+        print(f"Error getting lists for user: {e}")
+        return []
+    finally:
+        conn.close()
+
+def remove_grocery_list(list_id, user_id):
+    """Removes a specific grocery list belonging to a specific user."""
+    conn = get_db_connection()
+    if conn is None: return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM grocery_lists WHERE list_id = %s AND user_id = %s;", (list_id, user_id))
+            conn.commit()
+            if cur.rowcount > 0:
+                print(f"✅ List {list_id} deleted successfully.")
+                return True
+            else:
+                print(f"⚠️ Warning: List {list_id} not found or permission denied for user {user_id}.")
+                return False
+    except psycopg2.Error as e:
+        print(f"Error removing grocery list: {e}")
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
+
+def update_grocery_list(list_obj, user_id):
+    """Updates a grocery list's items. Ensures user owns the list."""
+    conn = get_db_connection()
+    if conn is None: return False
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT user_id FROM grocery_lists WHERE list_id = %s AND user_id = %s;", (list_obj.list_id, user_id))
+            if cur.fetchone() is None:
+                return False
+
+            cur.execute("DELETE FROM grocery_list_items WHERE list_id = %s;", (list_obj.list_id,))
+
+            for product, quantity in list_obj.products_on_list:
+                cur.execute("""
+                    INSERT INTO grocery_list_items (list_id, name, category, quantity)
+                    VALUES (%s, %s, %s, %s);
+                """, (list_obj.list_id, product.name, product.category, quantity))
+
+        conn.commit()
+        print(f"✅ List {list_obj.list_id} updated successfully.")
+        return True
+    except psycopg2.Error as e:
+        print(f"Error updating grocery list: {e}")
         conn.rollback()
         return False
     finally:

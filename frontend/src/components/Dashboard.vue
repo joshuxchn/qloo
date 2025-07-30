@@ -8,6 +8,12 @@
         </button>
         <div class="flex items-center space-x-4">
           <button
+            @click="buildList"
+            class="px-3 py-1 text-sm text-orange-500 hover:text-orange-600 hover:bg-orange-50 rounded font-semibold"
+          >
+            + New List
+          </button>
+          <button
             @click="redirectToProfile"
             class="px-3 py-1 text-sm text-stone-600 hover:text-orange-600 hover:bg-orange-50 rounded transition-colors"
           >
@@ -28,308 +34,102 @@
         <div class="bg-white border-0 shadow-sm rounded-lg p-4">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-xs text-stone-500">total</p>
-              <p class="text-xl font-medium text-stone-800">${{ totalCost.toFixed(2) }}</p>
+              <p class="text-xs text-stone-500">Total Lists</p>
+              <p class="text-xl font-medium text-stone-800">{{ userLists.length }}</p>
             </div>
-            <div class="h-5 w-5 bg-orange-200 rounded-full flex items-center justify-center text-orange-600 text-xs">$$</div>
           </div>
         </div>
-
         <div class="bg-white border-0 shadow-sm rounded-lg p-4">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-xs text-stone-500">saved</p>
-              <p class="text-xl font-medium text-emerald-700">${{ totalSavings.toFixed(2) }}</p>
+              <p class="text-xs text-stone-500">Active List Items</p>
+              <p class="text-xl font-medium text-stone-800">{{ activeList ? activeList.items.length : 0 }}</p>
             </div>
-            <div class="h-5 w-5 bg-emerald-200 rounded-full flex items-center justify-center text-emerald-700 text-xs">📉</div>
           </div>
         </div>
-
         <div class="bg-white border-0 shadow-sm rounded-lg p-4">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-xs text-stone-500">items</p>
-              <p class="text-xl font-medium text-stone-800">{{ groceryList.length }}</p>
+              <p class="text-xs text-stone-500">Active List Total</p>
+              <p class="text-xl font-medium text-emerald-700">${{ activeListTotalCost.toFixed(2) }}</p>
             </div>
-            <div class="h-5 w-5 bg-amber-200 rounded-full flex items-center justify-center text-amber-600 text-xs">🛒</div>
           </div>
         </div>
       </div>
 
       <div class="space-y-6">
         <div class="grid w-full grid-cols-3 bg-stone-100 border-0 rounded-lg p-1">
-          <button
-            @click="activeTab = 'list'"
-            :class="[
-              'text-sm px-4 py-2 rounded transition-colors',
-              activeTab === 'list'
-                ? 'bg-white text-stone-800 shadow-sm'
-                : 'text-stone-600 hover:text-stone-800'
-            ]"
-          >
-            list
-          </button>
-          <button
-            @click="activeTab = 'recommendations'"
-            :class="[
-              'text-sm px-4 py-2 rounded transition-colors',
-              activeTab === 'recommendations'
-                ? 'bg-white text-stone-800 shadow-sm'
-                : 'text-stone-600 hover:text-stone-800'
-            ]"
-          >
-            suggestions
-          </button>
-          <button
-            @click="activeTab = 'analytics'"
-            :class="[
-              'text-sm px-4 py-2 rounded transition-colors',
-              activeTab === 'analytics'
-                ? 'bg-white text-stone-800 shadow-sm'
-                : 'text-stone-600 hover:text-stone-800'
-            ]"
-          >
-            insights
-          </button>
+          <button @click="activeTab = 'lists'" :class="getTabClass('lists')">My Lists</button>
+          <button @click="activeTab = 'recommendations'" :class="getTabClass('recommendations')">Suggestions</button>
+          <button @click="activeTab = 'analytics'" :class="getTabClass('analytics')">Insights</button>
         </div>
 
-        <div v-if="activeTab === 'list'" class="bg-white border-0 shadow-sm rounded-lg">
-          <div class="p-6 border-b">
-             <span class="text-sm text-stone-600 hidden sm:block">
-            Welcome, <span class="font-semibold">{{ currentUser?.firstName || currentUser?.username || 'Guest' }}</span>
-          </span>
-          </div>
+        <div v-if="activeTab === 'lists'" class="bg-white border-0 shadow-sm rounded-lg">
           <div class="p-6">
-            <div class="flex gap-2 mb-6">
-              <input
-                v-model="newItem"
-                @keyup.enter="addItem"
-                placeholder="add item..."
-                class="flex-1 px-3 py-2 border-0 bg-stone-50 text-stone-800 placeholder:text-stone-500 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
-              />
-              <button
-                @click="addItem"
-                class="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-colors"
-              >
-                <span class="text-white">+</span>
+            <div v-if="isLoading" class="text-center py-12 text-stone-500">
+              <p>Loading your lists...</p>
+            </div>
+            <div v-else-if="userLists.length === 0" class="text-center py-12 text-stone-400">
+              <span class="text-stone-400 text-4xl block mb-3 opacity-50">📝</span>
+              <p>You haven't created any grocery lists yet.</p>
+              <button @click="buildList" class="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600">
+                Make Your First List
               </button>
             </div>
-
-            <div class="space-y-3">
-              <div
-                v-for="item in groceryList"
-                :key="item.id"
-                class="flex items-center justify-between p-3 bg-stone-50 rounded-lg hover:bg-stone-100 transition-colors"
-              >
-                <div class="flex-1">
-                  <div class="flex items-center gap-3">
-                    <div class="flex-1">
-                      <h4 class="font-medium text-stone-800 text-sm">{{ item.name }}</h4>
-                      <div class="flex items-center gap-3 mt-1">
-                        <span class="text-xs px-2 py-1 border border-stone-300 text-stone-600 rounded lowercase">
-                          {{ item.category }}
-                        </span>
-                        <span class="text-xs text-stone-500">{{ item.store }}</span>
-                        <div v-if="item.healthScore" class="flex items-center gap-1">
-                          <span class="text-amber-500">⭐</span>
-                          <span class="text-xs text-stone-500">{{ item.healthScore }}</span>
+            <div v-else class="space-y-4">
+              <div v-for="list in userLists" :key="list.list_id" class="border rounded-lg overflow-hidden">
+                <div @click="toggleList(list.list_id)" class="w-full text-left p-4 flex justify-between items-center hover:bg-stone-50 transition-colors cursor-pointer">
+                  <div>
+                    <h4 class="font-medium text-stone-800">{{ list.name }}</h4>
+                    <p class="text-xs text-stone-500">{{ list.items.length }} items • Created on {{ new Date(list.timestamp).toLocaleDateString() }}</p>
+                  </div>
+                  <div class="flex items-center gap-4">
+                    <span class="font-semibold text-emerald-700">${{ calculateListTotal(list).toFixed(2) }}</span>
+                    <span class="transform transition-transform" :class="{'rotate-180': activeListId === list.list_id}">▼</span>
+                  </div>
+                </div>
+                
+                <div v-if="activeListId === list.list_id" class="p-4 border-t bg-stone-50 space-y-4">
+                  <ul v-if="list.items.length > 0" class="space-y-3">
+                    <li v-for="item in list.items" :key="item.list_item_id || item.temp_id" class="flex justify-between items-center text-sm text-stone-700 bg-white p-3 rounded-md shadow-sm">
+                      <div class="flex-1">
+                        <div class="flex justify-between items-start">
+                          <div>
+                            <p class="font-semibold text-stone-800">{{ item.name }} (x{{ item.quantity }})</p>
+                            <p class="text-xs text-stone-500">{{ item.brand }} • {{ item.size }}</p>
+                            <p class="text-xs text-stone-500">{{ item.fulfillment_type }} • <span :class="item.inventory === 'In Stock' ? 'text-emerald-600' : 'text-amber-600'">{{ item.inventory }}</span></p>
+                          </div>
+                          <div class="text-right">
+                            <p v-if="item.promo_price" class="font-semibold text-emerald-600">${{ (parseFloat(item.promo_price) || 0).toFixed(2) }}</p>
+                            <p :class="item.promo_price ? 'text-xs text-stone-400 line-through' : 'font-semibold text-stone-800'">
+                              ${{ (parseFloat(item.price) || 0).toFixed(2) }}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-
-                    <div class="text-right">
-                      <div class="flex items-center gap-2">
-                        <span
-                          v-if="item.originalPrice"
-                          class="text-xs text-stone-400 line-through"
-                        >
-                          ${{ item.originalPrice.toFixed(2) }}
-                        </span>
-                        <span class="font-medium text-emerald-700 text-sm">
-                          ${{ item.price.toFixed(2) }}
-                        </span>
-                      </div>
-                      <span v-if="item.alternatives" class="text-xs text-orange-600">
-                        {{ item.alternatives }} options
-                      </span>
-                    </div>
+                      <button @click="removeItemFromList(list, item)" class="ml-4 text-red-500 hover:text-red-700">🗑️</button>
+                    </li>
+                  </ul>
+                  <p v-else class="text-sm text-stone-500 italic">This list is currently empty.</p>
+                  
+                  <div class="flex gap-2 pt-4 border-t">
+                    <input v-model="newItemName" @keyup.enter="addItemToList(list)" placeholder="Add new item" class="flex-1 px-3 py-2 border border-stone-300 rounded-md text-sm"/>
+                    <button @click="addItemToList(list)" class="px-3 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600">+</button>
                   </div>
-                </div>
-
-                <div class="flex items-center gap-2 ml-4">
-                  <span v-if="item.inStock" class="text-emerald-600">✅</span>
-                  <span v-else class="text-amber-600">⚠️</span>
-                  <button
-                    @click="removeItem(item.id)"
-                    class="text-stone-400 hover:text-red-500 h-6 w-6 p-0 transition-colors"
-                  >
-                    <span class="text-red-500">🗑️</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div v-if="groceryList.length === 0" class="text-center py-12 text-stone-400">
-              <span class="text-stone-400 text-4xl block mb-3 opacity-50">🛒</span>
-              <p class="text-sm">no items yet</p>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="activeTab === 'recommendations'" class="grid md:grid-cols-2 gap-4">
-          <div class="bg-white border-0 shadow-sm rounded-lg">
-            <div class="p-4 border-b">
-              <h4 class="text-sm font-medium text-stone-800">alternatives</h4>
-            </div>
-            <div class="p-4 space-y-3">
-              <div class="p-3 bg-stone-50 rounded-lg">
-                <div class="flex justify-between items-start mb-2">
-                  <h4 class="font-medium text-sm text-stone-800">greek yogurt</h4>
-                  <span class="text-xs px-2 py-1 bg-emerald-100 text-emerald-800 rounded">healthier</span>
-                </div>
-                <p class="text-xs text-stone-600 mb-2">higher protein</p>
-                <div class="flex justify-between text-xs">
-                  <span class="text-stone-500">was $4.99</span>
-                  <span class="text-emerald-700 font-medium">now $5.99</span>
-                </div>
-              </div>
-
-              <div class="p-3 bg-stone-50 rounded-lg">
-                <div class="flex justify-between items-start mb-2">
-                  <h4 class="font-medium text-sm text-stone-800">whole wheat bread</h4>
-                  <span class="text-xs px-2 py-1 bg-orange-100 text-orange-800 rounded">better value</span>
-                </div>
-                <p class="text-xs text-stone-600 mb-2">more nutritious</p>
-                <div class="flex justify-between text-xs">
-                  <span class="text-stone-500">was $2.99</span>
-                  <span class="text-emerald-700 font-medium">now $3.29</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-white border-0 shadow-sm rounded-lg">
-            <div class="p-4 border-b">
-              <h4 class="text-sm font-medium text-stone-800">suggestions</h4>
-            </div>
-            <div class="p-4 space-y-3">
-              <div class="p-3 bg-stone-50 rounded-lg">
-                <h4 class="font-medium mb-2 text-sm text-stone-800">mediterranean</h4>
-                <div class="space-y-1 text-xs">
-                  <div class="flex justify-between">
-                    <span class="text-stone-600">olive oil</span>
-                    <span class="text-emerald-700">$8.99</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-stone-600">fresh basil</span>
-                    <span class="text-emerald-700">$2.49</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="p-3 bg-stone-50 rounded-lg">
-                <h4 class="font-medium mb-2 text-sm text-stone-800">seasonal</h4>
-                <div class="space-y-1 text-xs">
-                  <div class="flex justify-between">
-                    <span class="text-stone-600">winter squash</span>
-                    <span class="text-emerald-700">$1.99/lb</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-stone-600">brussels sprouts</span>
-                    <span class="text-emerald-700">$3.49/lb</span>
+                  
+                  <div class="mt-4 pt-4 border-t border-stone-200 flex justify-end gap-4">
+                    <button @click.stop="deleteList(list.list_id)" class="text-xs px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700">
+                      Delete List
+                    </button>
+                    <button @click="saveListChanges(list)" class="text-xs px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700">
+                      Save Changes
+                    </button>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-
-        <div v-if="activeTab === 'analytics'" class="grid md:grid-cols-2 gap-4">
-          <div class="bg-white border-0 shadow-sm rounded-lg">
-            <div class="p-4 border-b">
-              <h4 class="text-sm font-medium text-stone-800">budget</h4>
-              <p class="text-xs text-stone-600">weekly limit: ${{ currentUser?.budget || 0 }}</p>
-            </div>
-            <div class="p-4">
-              <div class="space-y-4">
-                <div>
-                  <div class="flex justify-between text-xs mb-2">
-                    <span class="text-stone-600">current</span>
-                    <span class="text-stone-600">${{ totalCost.toFixed(2) }} / ${{ currentUser?.budget || 0 }}</span>
-                  </div>
-                  <div class="w-full bg-stone-200 rounded-full h-1">
-                    <div
-                      class="bg-orange-500 h-1 rounded-full transition-all"
-                      :style="{ width: `${Math.min((totalCost / (currentUser?.budget || 1)) * 100, 100)}%` }"
-                    ></div>
-                  </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3 text-center">
-                  <div class="p-3 bg-emerald-50 rounded-lg">
-                    <div class="text-sm font-medium text-emerald-700">
-                      ${{ ((currentUser?.budget || 0) - totalCost).toFixed(2) }}
-                    </div>
-                    <div class="text-xs text-stone-600">remaining</div>
-                  </div>
-                  <div class="p-3 bg-orange-50 rounded-lg">
-                    <div class="text-sm font-medium text-orange-600">
-                      ${{ totalSavings.toFixed(2) }}
-                    </div>
-                    <div class="text-xs text-stone-600">saved</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-white border-0 shadow-sm rounded-lg">
-            <div class="p-4 border-b">
-              <h4 class="text-sm font-medium text-stone-800">insights</h4>
-            </div>
-            <div class="p-4">
-              <div class="space-y-4">
-                <div>
-                  <h4 class="font-medium mb-2 text-xs text-stone-600">categories</h4>
-                  <div class="space-y-2">
-                    <div class="flex justify-between text-xs">
-                      <span class="text-stone-600">produce</span>
-                      <span class="text-emerald-700">35%</span>
-                    </div>
-                    <div class="flex justify-between text-xs">
-                      <span class="text-stone-600">meat</span>
-                      <span class="text-orange-600">25%</span>
-                    </div>
-                    <div class="flex justify-between text-xs">
-                      <span class="text-stone-600">dairy</span>
-                      <span class="text-amber-600">20%</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 class="font-medium mb-2 text-xs text-stone-600">health score</h4>
-                  <div class="flex items-center gap-2">
-                    <div class="flex-1 bg-stone-200 rounded-full h-1">
-                      <div class="bg-orange-500 h-1 rounded-full w-[85%]"></div>
-                    </div>
-                    <span class="text-xs font-medium text-stone-800">85</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="mt-8 flex justify-center">
-        <button
-          @click="handleCheckout"
-          class="px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors flex items-center gap-2"
-        >
-          Checkout at Kroger
-          <span class="text-white">↗️</span>
-        </button>
       </div>
     </div>
   </div>
@@ -340,108 +140,134 @@ import { userStore } from '../stores/userStore.js';
 
 export default {
   name: 'Dashboard',
+  emits: ['set-current-view'],
   data() {
     return {
-      activeTab: 'list',
-      newItem: '',
-      groceryList: [
-        {
-          id: 1,
-          name: 'Organic Free-Range Eggs',
-          category: 'dairy & alternatives',
-          store: 'Whole Foods',
-          healthScore: 9,
-          originalPrice: 7.99,
-          price: 6.50,
-          alternatives: 3,
-          inStock: true
-        },
-        {
-          id: 2,
-          name: 'Avocados (3-pack)',
-          category: 'produce',
-          store: 'Kroger',
-          healthScore: 8,
-          originalPrice: 5.49,
-          price: 4.99,
-          alternatives: 0,
-          inStock: true
-        },
-        {
-          id: 3,
-          name: 'Artisan Sourdough Bread',
-          category: 'bakery',
-          store: 'Local Bakery',
-          healthScore: 7,
-          originalPrice: 4.29,
-          price: 3.99,
-          alternatives: 1,
-          inStock: false
-        },
-        {
-          id: 4,
-          name: 'Grass-fed Ground Beef',
-          category: 'meat',
-          store: 'Butcher Shop',
-          healthScore: 6,
-          originalPrice: 10.99,
-          price: 9.50,
-          alternatives: 0,
-          inStock: true
-        }
-      ]
+      activeTab: 'lists',
+      isLoading: true,
+      userLists: [],
+      activeListId: null,
+      newItemName: '',
     };
   },
   computed: {
     currentUser() {
       return userStore.user;
     },
-    totalCost() {
-      return this.groceryList.reduce((sum, item) => sum + item.price, 0);
+    activeList() {
+      if (!this.activeListId) return null;
+      return this.userLists.find(list => list.list_id === this.activeListId);
     },
-    totalSavings() {
-      return this.groceryList.reduce((sum, item) => {
-        if (item.originalPrice) {
-          return sum + (item.originalPrice - item.price);
-        }
-        return sum;
-      }, 0);
-    }
+    activeListTotalCost() {
+      if (!this.activeList) return 0;
+      return this.calculateListTotal(this.activeList);
+    },
   },
   methods: {
+    async fetchUserLists() {
+      this.isLoading = true;
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/grocery-lists`, {
+          headers: { 'Authorization': `Bearer ${userStore.token}` }
+        });
+        if (!response.ok) throw new Error('Failed to fetch lists.');
+        this.userLists = await response.json();
+      } catch (error) {
+        console.error("Error fetching lists:", error);
+        this.userLists = [];
+      } finally {
+        this.isLoading = false;
+      }
+    },
+    async deleteList(listId) {
+      if (!window.confirm('Are you sure you want to permanently delete this list?')) {
+        return;
+      }
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/grocery-list/${listId}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${userStore.token}` }
+        });
+        if (!response.ok) throw new Error('Failed to delete list.');
+        this.userLists = this.userLists.filter(list => list.list_id !== listId);
+        this.activeListId = null;
+      } catch (error) {
+        console.error("Error deleting list:", error);
+        alert('Failed to delete the list.');
+      }
+    },
+    async saveListChanges(list) {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/grocery-list/${list.list_id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${userStore.token}`
+          },
+          body: JSON.stringify(list)
+        });
+        if (!response.ok) throw new Error('Failed to save changes.');
+        alert('List updated successfully!');
+        await this.fetchUserLists();
+      } catch (error) {
+        console.error('Error saving list changes:', error);
+        alert('Failed to save changes.');
+      }
+    },
+    addItemToList(list) {
+      if (!this.newItemName.trim()) return;
+      list.items.push({
+        temp_id: `temp-${Date.now()}`,
+        name: this.newItemName.trim(),
+        quantity: 1,
+        price: 0.00,
+        promo_price: null,
+        brand: 'N/A',
+        size: 'N/A',
+        inventory: 'Unknown',
+        // CORRECTED: Spelling of fulfillment_type
+        fulfillment_type: 'In-Store',
+        category: 'Uncategorized'
+      });
+      this.newItemName = '';
+    },
+    removeItemFromList(list, itemToRemove) {
+      list.items = list.items.filter(item => 
+        (item.list_item_id || item.temp_id) !== (itemToRemove.list_item_id || itemToRemove.temp_id)
+      );
+    },
+    toggleList(listId) {
+      this.activeListId = this.activeListId === listId ? null : listId;
+      this.newItemName = '';
+    },
+    getTabClass(tabName) {
+      return this.activeTab === tabName ? 'bg-white text-stone-800 shadow-sm' : 'text-stone-600 hover:text-stone-800';
+    },
     signOut() {
       userStore.logout();
       this.$router.push('/login');
     },
+    buildList() {
+      this.$router.push('/list');
+    },
     redirectToProfile() {
       this.$router.push('/profile');
     },
-    redirectToNewList() {
-      this.$router.push('/newList');
+    calculateListTotal(list) {
+      if (!list || !list.items) return 0;
+      return list.items.reduce((total, item) => {
+        const price = parseFloat(item.promo_price) || parseFloat(item.price) || 0;
+        const quantity = parseInt(item.quantity, 10) || 1;
+        return total + (price * quantity);
+      }, 0);
     },
-    addItem() {
-      if (this.newItem.trim()) {
-        this.groceryList.push({
-          id: Date.now(),
-          name: this.newItem.trim(),
-          category: 'uncategorized',
-          store: 'unknown',
-          price: 0.00,
-          inStock: true
-        });
-        this.newItem = '';
-      }
-    },
-    removeItem(id) {
-      this.groceryList = this.groceryList.filter(item => item.id !== id);
-    },
-    handleCheckout() {
-      alert('Simulating checkout process at Kroger!');
-    }
-  }
+  },
+  created() {
+    this.fetchUserLists();
+  },
 };
 </script>
 
 <style scoped>
-/* Scoped styles for Dashboard component if any */
+/* No style changes needed */
 </style>

@@ -10,11 +10,15 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 from functools import wraps
 
+# --- Load Environment Variables & Path Setup ---
 load_dotenv()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from database import db_utils
 from database.user import User
+from database.list import GroceryList
+from database.product import Product
 
+# --- User Management Logic ---
 class AuthUserService:
     def find_user_by_email(self, email):
         conn = db_utils.get_db_connection()
@@ -33,9 +37,10 @@ class AuthUserService:
         user = User(user_id=user_id, username=username, email=email, password="google_auth")
         return user if db_utils.add_user_to_db(user) else None
 
+# --- Flask App, CORS, OAuth Initialization ---
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
-CORS(app)
+CORS(app, supports_credentials=True)
 oauth = OAuth(app)
 user_service = AuthUserService()
 
@@ -47,6 +52,7 @@ oauth.register(
     client_kwargs={'scope': 'openid email profile'}
 )
 
+# --- JWT Verification Decorator ---
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -65,6 +71,7 @@ def token_required(f):
         return f(current_user, *args, **kwargs)
     return decorated
 
+# --- API Routes ---
 @app.route('/api/user/profile')
 @token_required
 def get_user_profile(current_user):
@@ -89,7 +96,6 @@ def finalize_profile(current_user):
     profile_data = request.get_json()
     if not profile_data:
         return jsonify({"error": "Missing profile data"}), 400
-
     current_user.first_name = profile_data.get('first_name')
     current_user.last_name = profile_data.get('last_name')
     current_user.preferred_location = profile_data.get('preferred_location')
@@ -104,7 +110,6 @@ def finalize_profile(current_user):
     current_user.favorite_foods = profile_data.get('favorite_foods')
     current_user.age = profile_data.get('age')
     current_user.gender = profile_data.get('gender')
-
     if db_utils.update_user_details(current_user):
         return jsonify({"message": "Profile updated successfully"}), 200
     else:
@@ -116,7 +121,6 @@ def update_profile(current_user):
     profile_data = request.get_json()
     if not profile_data:
         return jsonify({"error": "Missing profile data"}), 400
-
     current_user.first_name = profile_data.get('firstName', current_user.first_name)
     current_user.last_name = profile_data.get('lastName', current_user.last_name)
     current_user.preferred_location = profile_data.get('preferredLocation', current_user.preferred_location)
@@ -131,12 +135,101 @@ def update_profile(current_user):
     current_user.favorite_foods = profile_data.get('favoriteFoods', current_user.favorite_foods)
     current_user.age = profile_data.get('age', current_user.age)
     current_user.gender = profile_data.get('gender', current_user.gender)
-    
     if db_utils.update_user_details(current_user):
         return jsonify({"message": "Profile updated successfully"}), 200
     else:
         return jsonify({"error": "Failed to update profile in database"}), 500
 
+@app.route('/api/grocery-list/create', methods=['POST'])
+@token_required
+def create_grocery_list(current_user):
+    data = request.get_json()
+    list_name = data.get('name')
+    items_data = data.get('items', [])
+    if not list_name or not items_data:
+        return jsonify({"error": "List name and items are required"}), 400
+    
+    products_on_list = []
+    for item in items_data:
+        product = Product(
+            name=item.get('name'),
+            price=item.get('price', 0.00),
+            promo_price=item.get('promo_price'),
+            fulfillment_type=item.get('fulfillment_type', 'UNKNOWN'), # CORRECTED SPELLING (two 'l's)
+            brand=item.get('brand', 'N/A'),
+            inventory=item.get('inventory', 'UNKNOWN'),
+            size=item.get('size', 'N/A'),
+            last_updated=datetime.now(timezone.utc),
+            location_ID=item.get('location_ID', 'N/A'),
+            upc=item.get('upc', 'N/A'),
+            category=item.get('category', 'Uncategorized')
+        )
+        quantity = item.get('quantity', 1)
+        products_on_list.append((product, quantity))
+    
+    new_list = GroceryList(
+        list_id=str(uuid.uuid4()),
+        user_id=current_user.user_id,
+        name=list_name,
+        timestamp=datetime.now(timezone.utc),
+        products_on_list=products_on_list
+    )
+    if db_utils.add_grocery_list_to_db(new_list):
+        return jsonify({"message": "List created successfully", "list_id": new_list.list_id}), 201
+    else:
+        return jsonify({"error": "Failed to save list"}), 500
+
+@app.route('/api/grocery-list/<string:list_id>', methods=['PUT'])
+@token_required
+def update_grocery_list_endpoint(current_user, list_id):
+    data = request.get_json()
+    items_data = data.get('items', [])
+    list_name = data.get('name', 'My Grocery List')
+    products_on_list = []
+    for item in items_data:
+        product = Product(
+            name=item.get('name'),
+            price=item.get('price', 0.00),
+            promo_price=item.get('promo_price'),
+            fulfillment_type=item.get('fulfillment_type', 'UNKNOWN'), # CORRECTED SPELLING (two 'l's)
+            brand=item.get('brand', 'N/A'),
+            inventory=item.get('inventory', 'UNKNOWN'),
+            size=item.get('size', 'N/A'),
+            last_updated=datetime.now(timezone.utc),
+            location_ID=item.get('location_ID', 'N/A'),
+            upc=item.get('upc', 'N/A'),
+            category=item.get('category', 'Uncategorized')
+        )
+        quantity = item.get('quantity', 1)
+        products_on_list.append((product, quantity))
+        
+    list_to_update = GroceryList(
+        list_id=list_id,
+        user_id=current_user.user_id,
+        name=list_name,
+        timestamp=datetime.now(timezone.utc),
+        products_on_list=products_on_list
+    )
+    if db_utils.update_grocery_list(list_to_update, current_user.user_id):
+        return jsonify({"message": "List updated successfully"}), 200
+    else:
+        return jsonify({"error": "Failed to update list or permission denied"}), 404
+
+@app.route('/api/grocery-list/<string:list_id>', methods=['DELETE'])
+@token_required
+def delete_grocery_list(current_user, list_id):
+    if db_utils.remove_grocery_list(list_id, current_user.user_id):
+        return jsonify({"message": "List deleted successfully"}), 200
+    else:
+        return jsonify({"error": "List not found or permission denied"}), 404
+        
+@app.route('/api/grocery-lists', methods=['GET'])
+@token_required
+def get_grocery_lists(current_user):
+    user_lists = db_utils.get_all_lists_for_user(current_user.user_id)
+    return jsonify(user_lists)
+
+# --- SIGN UP FLOW ---
 @app.route('/auth/google/signup')
 def signup_google():
     redirect_uri = url_for('auth_google_signup_callback', _external=True)
@@ -160,6 +253,7 @@ def auth_google_signup_callback():
         print(f"Signup callback error: {e}")
         return redirect(f"{os.getenv('FRONTEND_URL')}/login?error=true")
 
+# --- SIGN IN FLOW ---
 @app.route('/auth/google/login')
 def login_google():
     redirect_uri = url_for('auth_google_login_callback', _external=True)
@@ -180,6 +274,7 @@ def auth_google_login_callback():
         print(f"Login callback error: {e}")
         return redirect(f"{os.getenv('FRONTEND_URL')}/login?error=true")
 
+# --- Main Execution Block ---
 if __name__ == '__main__':
     print("🚀 Starting Standalone Authentication Server")
     db_utils.create_tables()

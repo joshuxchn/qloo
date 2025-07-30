@@ -13,6 +13,7 @@ import Cookies from './components/Cookies.vue'
 import Setup from './components/Setup.vue'
 import dashboard from './components/dashboard.vue'
 import profile from './components/Profile.vue'
+import list from './components/ListBuilder.vue'
 // 👇 1. IMPORT THE AUTH CALLBACK COMPONENT
 import AuthCallback from './components/AuthCallback.vue';
 
@@ -23,6 +24,7 @@ const routes = [
   { path: '/setup', component: Setup },
   { path: '/cookies', component: Cookies },
   { path: '/privacy', component: Privacy },
+  { path: '/list', component: list },
   { path: '/terms', component: TOS },
   { path: '/login', component: Login },
   { path: '/profile', component: profile },
