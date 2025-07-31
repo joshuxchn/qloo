@@ -1,18 +1,18 @@
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import os
 from dotenv import load_dotenv
 from kroger import KrogerAPI
 from qloo import get_parsed_recommendations, UserProfile
 import chromadb
+from chromadb.config import Settings
 import uuid
 
 # Create KrogerAPI instance
 kroger_api = KrogerAPI()
 
-# Wrapper function for Gemini function calling
-def search_kroger_products(search_term: str, limit: int) -> list:
-    """
-    Search for products using Kroger API.
+def search_kroger_products(search_term: str, limit: int) -> list[str]:
+    """Search for products using Kroger API.
     
     Args:
         search_term: Product name to search for
@@ -28,10 +28,13 @@ def search_kroger_products(search_term: str, limit: int) -> list:
         print(f"Kroger API error: {e}")
         return []
 
-
 load_dotenv("../.env")
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-chroma_client = chromadb.HttpClient(host='localhost', port=8000)
+
+# Disable ChromaDB telemetry to avoid version compatibility errors
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+chroma_client = chromadb.Client()
 collection = chroma_client.get_or_create_collection(name="my_collection")
 
 test_user = UserProfile(
@@ -45,13 +48,16 @@ test_user = UserProfile(
 
 def similar_products(product: str) -> list[str]:
     prompt = (
-        f"You are a grocery‑expert recommender, with knowledge in the composition and popularity of foods.\n"
-        f"Generate 5 groceries similar to “{product}”.\n"
+        f"You are a grocery-expert recommender, with knowledge in the composition and popularity of foods.\n"
+        f"Generate 5 groceries similar to '{product}'.\n"
         "Output only the items and a 100 character max detailed description of only the ITEM itself, one per line, with no bullets or numbering.\n"
         "Example: Cranberry: Tart, red berry, popular for sauces, juices, and vitamin D benefits\n"
     )
-    model = genai.GenerativeModel("gemini-2.0-flash-exp")
-    response = model.generate_content(prompt)
+    
+    response = client.models.generate_content(
+        model="gemini-2.0-flash-exp",
+        contents=prompt
+    )
     raw = response.text.strip()  
     items = [line.strip() for line in raw.splitlines() if line.strip()]
 
@@ -61,14 +67,17 @@ def qloo_suggestions() -> list[str]:
     recommendations = get_parsed_recommendations(test_user)
     formatted = "\n".join([rec['name'] for rec in recommendations])
     prompt = (
-        f"You are a grocery‑expert recommender, with knowledge in the composition and popularity of foods.\n"
+        f"You are a grocery-expert recommender, with knowledge in the composition and popularity of foods.\n"
         "Output only the items given and a 100 character max detailed description of only the ITEM itself, one per line, with no bullets or numbering.\n"
         "Example: Cranberry: Tart, red berry, popular for sauces, juices, and health benefits\n"
         f"List of items: \n{formatted}"
     
     )
-    model = genai.GenerativeModel("gemini-2.0-flash-exp")
-    response = model.generate_content(prompt)
+    
+    response = client.models.generate_content(
+        model="gemini-2.0-flash-exp",
+        contents=prompt
+    )
     raw = response.text.strip()  
     items = [line.strip() for line in raw.splitlines() if line.strip()]
     return items
@@ -107,15 +116,13 @@ def retreive(query):
 def smart_swap(product): 
     names = retreive(product)
 
-    tools = [search_kroger_products]
-    
-    model = genai.GenerativeModel(
-        "gemini-2.0-flash-exp",
-        tools=tools,
-        generation_config=genai.GenerationConfig(temperature=0)
+    config = types.GenerateContentConfig(
+        tools=[search_kroger_products]
     )
-    
-    response = model.generate_content(f"""
+
+    response = client.models.generate_content(
+        model="gemini-2.0-flash-exp",
+        contents=f"""
         You are a groceries expert and recommender. Here are 3 similar products to {product}:
         {', '.join(names)}
         
@@ -123,7 +130,9 @@ def smart_swap(product):
         Then return the actual Kroger product names you found, one per line.
         
         Return these 3 product names as grocery alternatives, one per line.
-        """)
+        """,
+        config=config
+    )
 
     print("Response:")
     print(response.text)
