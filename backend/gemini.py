@@ -7,11 +7,33 @@ from qloo import get_parsed_recommendations, UserProfile
 import chromadb
 import uuid
 
+# Create KrogerAPI instance
+kroger_api = KrogerAPI()
+
+# Wrapper function for Gemini function calling
+def search_kroger_products(search_term: str, limit: int) -> list:
+    """
+    Search for products using Kroger API.
+    
+    Args:
+        search_term: Product name to search for
+        limit: Maximum number of products to return
+        
+    Returns:
+        List of product names found in Kroger stores
+    """
+    try:
+        products = kroger_api.productSearch(search_term, limit=limit)
+        return [product.name for product in products] if products else []
+    except Exception as e:
+        print(f"Kroger API error: {e}")
+        return []
+
 
 load_dotenv("../.env")
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-chroma_client = chromadb.Client()
-collection = chroma_client.create_collection(name="my_collection")
+chroma_client = chromadb.HttpClient(host='localhost', port=8000)
+collection = chroma_client.get_or_create_collection(name="my_collection")
 
 test_user = UserProfile(
     age=15,
@@ -56,37 +78,56 @@ def qloo_suggestions() -> list[str]:
     items = [line.strip() for line in raw.splitlines() if line.strip()]
     return items
 
+def deterministic_id(name: str) -> str:
+
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, name))
+
 def embedding():
     data = qloo_suggestions() + similar_products("blueberries")
-    
-    product_names = [item.split(':')[0].strip() for item in data]
-    
-    collection.add(
-        documents=data,
-        metadatas=[{"name": name} for name in product_names],
-        ids=[str(uuid.uuid4()) for _ in range(len(data))]
+    ids   = []
+    docs  = []
+    metas = []
+    for item in data:
+        name = item.split(":",1)[0].strip()
+        id_  = deterministic_id(name)
+        ids.append(id_)
+        docs.append(item)
+        metas.append({"name": name})
+
+    collection.upsert(
+        ids=ids,
+        documents=docs,
+        metadatas=metas,
     )
 
 def retreive(query):
     response=collection.query(
         query_texts=f"Please find relevant items related to {query}",
-        n_results=5
+        n_results=3
     )
-    return response
+
+    names = [meta['name'] for meta in response['metadatas'][0]]
+    return names
 
 def smart_swap(product): 
+    names = retreive(product)
+
     config = types.GenerateContentConfig(
         temperature=0,
-        tools=[],
+        tools=[search_kroger_products],
         thinking_config=types.ThinkingConfig(include_thoughts=True)
     )
     
     response = client.models.generate_content(
         model="gemini-2.5-flash", 
-        contents="""
-        
-
-
+        contents=f"""
+            You are a groceries expert and recommender. Here are 3 similar products to {product}:
+            {', '.join(names)}
+            
+            For each of these 3 products, search for them using search_kroger_products function.
+            Then return the actual Kroger product names you found, one per line.
+            
+            Return these 3 product names as grocery alternatives, one per line.
             """,
         config=config
     )
@@ -100,7 +141,7 @@ def smart_swap(product):
             print("Answer:", part.text)
     return response
 
-embedding()
-print(retreive("indian food"))
+embedding()  # Run once to populate database
+smart_swap("tangerine")
 
 
