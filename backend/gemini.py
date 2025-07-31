@@ -1,5 +1,4 @@
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 import os
 from dotenv import load_dotenv
 from kroger import KrogerAPI
@@ -31,7 +30,7 @@ def search_kroger_products(search_term: str, limit: int) -> list:
 
 
 load_dotenv("../.env")
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 chroma_client = chromadb.HttpClient(host='localhost', port=8000)
 collection = chroma_client.get_or_create_collection(name="my_collection")
 
@@ -51,10 +50,8 @@ def similar_products(product: str) -> list[str]:
         "Output only the items and a 100 character max detailed description of only the ITEM itself, one per line, with no bullets or numbering.\n"
         "Example: Cranberry: Tart, red berry, popular for sauces, juices, and vitamin D benefits\n"
     )
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    model = genai.GenerativeModel("gemini-2.0-flash-exp")
+    response = model.generate_content(prompt)
     raw = response.text.strip()  
     items = [line.strip() for line in raw.splitlines() if line.strip()]
 
@@ -70,10 +67,8 @@ def qloo_suggestions() -> list[str]:
         f"List of items: \n{formatted}"
     
     )
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=prompt
-    )
+    model = genai.GenerativeModel("gemini-2.0-flash-exp")
+    response = model.generate_content(prompt)
     raw = response.text.strip()  
     items = [line.strip() for line in raw.splitlines() if line.strip()]
     return items
@@ -112,33 +107,26 @@ def retreive(query):
 def smart_swap(product): 
     names = retreive(product)
 
-    config = types.GenerateContentConfig(
-        temperature=0,
-        tools=[search_kroger_products],
-        thinking_config=types.ThinkingConfig(include_thoughts=True)
+    tools = [search_kroger_products]
+    
+    model = genai.GenerativeModel(
+        "gemini-2.0-flash-exp",
+        tools=tools,
+        generation_config=genai.GenerationConfig(temperature=0)
     )
     
-    response = client.models.generate_content(
-        model="gemini-2.5-flash", 
-        contents=f"""
-            You are a groceries expert and recommender. Here are 3 similar products to {product}:
-            {', '.join(names)}
-            
-            For each of these 3 products, search for them using search_kroger_products function.
-            Then return the actual Kroger product names you found, one per line.
-            
-            Return these 3 product names as grocery alternatives, one per line.
-            """,
-        config=config
-    )
+    response = model.generate_content(f"""
+        You are a groceries expert and recommender. Here are 3 similar products to {product}:
+        {', '.join(names)}
+        
+        For each of these 3 products, search for them using search_kroger_products function.
+        Then return the actual Kroger product names you found, one per line.
+        
+        Return these 3 product names as grocery alternatives, one per line.
+        """)
 
-    #thought proccess for complex tasks
     print("Response:")
-    for part in response.candidates[0].content.parts:
-        if hasattr(part, 'thought') and part.thought:
-            print("Thought:", part.text)
-        else:
-            print("Answer:", part.text)
+    print(response.text)
     return response
 
 embedding()  # Run once to populate database

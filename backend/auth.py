@@ -13,10 +13,10 @@ from functools import wraps
 # --- Load Environment Variables & Path Setup ---
 load_dotenv()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from database import db_utils
-from database.user import User
-from database.list import GroceryList
-from database.product import Product
+from Database import db_utils
+from Database.user import User
+from Database.list import GroceryList
+from Database.product import Product
 
 # --- User Management Logic ---
 class AuthUserService:

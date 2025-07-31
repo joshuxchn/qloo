@@ -150,7 +150,7 @@ class KrogerAPI:
                         name=name,
                         price=regular_price,
                         promo_price=promo_price,
-                        fufillment_type=fulfillment_type,
+                        fulfillment_type=fulfillment_type,
                         brand=brand,
                         inventory=stock_level,
                         size=size,
@@ -368,5 +368,11 @@ class KrogerAPI:
                 
         except Exception:
             return False
-
-# Example usage moved to test_kroger.py
+        
+if __name__ == "__main__":
+    api = KrogerAPI()
+    results = api.productSearch("blueberries")
+    
+    print(f"Found {len(results)} product(s):")
+    for product in results:
+        print(f"- {product.name} by {product.brand} (${product.price})")
