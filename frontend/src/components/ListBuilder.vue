@@ -45,19 +45,20 @@
                 <h3 class="text-lg font-medium text-stone-800">Choose Your Input Method</h3>
               </div>
               <div class="p-6">
-                <div class="grid w-full grid-cols-4 bg-stone-100 border-0 rounded-lg p-1 mb-6">
+                <div class="grid w-full grid-cols-3 bg-stone-100 border-0 rounded-lg p-1 mb-6">
                   <button @click="inputMethod = 'manual'" :class="getTabClass('manual')">Manual</button>
                   <button @click="inputMethod = 'ai'" :class="getTabClass('ai')">AI Prompt</button>
                   <button @click="inputMethod = 'recipe'" :class="getTabClass('recipe')">Recipe</button>
-                  <button @click="inputMethod = 'photo'" :class="getTabClass('photo')">Photo</button>
                 </div>
 
                 <div v-if="inputMethod === 'manual'" class="space-y-4">
                   <h4 class="font-medium mb-2 text-stone-800">Add Items Manually</h4>
                   <div class="flex gap-2">
                     <input v-model="manualItem" @keyup.enter="addManualItem" placeholder="e.g., 'milk', 'bananas'" class="flex-1 px-3 py-2 border border-stone-300 rounded-md" />
-                    <button @click="addManualItem" class="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md">
-                      <Plus class="h-4 w-4" />
+                    <input type="number" v-model.number="manualItemQuantity" min="1" class="w-20 px-2 py-2 border border-stone-300 rounded-md text-center" />
+                    <button @click="addManualItem" :disabled="isAddingManually" class="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-md disabled:bg-stone-300 flex-center-gap">
+                      <Clock v-if="isAddingManually" class="h-4 w-4 animate-spin" />
+                      <Plus v-else class="h-4 w-4" />
                     </button>
                   </div>
                 </div>
@@ -81,35 +82,6 @@
                     {{ isGenerating ? 'Analyzing...' : 'Extract Ingredients' }}
                   </button>
                 </div>
-
-                <div v-if="inputMethod === 'photo'" class="space-y-4">
-                  <h4 class="font-medium mb-2 text-stone-800">Photo Recognition</h4>
-                  <div class="border-2 border-dashed border-stone-300 rounded-lg p-8 text-center">
-                    <Camera class="h-12 w-12 text-stone-400 mx-auto mb-4" />
-                    <p class="text-stone-600 mb-4">Drag and drop an image here</p>
-                    <button disabled class="px-4 py-2 border border-stone-300 text-stone-700 bg-transparent rounded flex-center-gap mx-auto">
-                      <Upload class="h-4 w-4" />
-                      Upload Photo (Coming Soon)
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="bg-white border border-stone-200 shadow-sm rounded-lg">
-              <div class="p-6 border-b">
-                <h3 class="text-lg font-medium text-stone-800">Quick Templates</h3>
-                <p class="text-stone-600 mt-1">Start with pre-made templates for common meal plans</p>
-              </div>
-              <div class="p-6 grid grid-cols-2 gap-3">
-                <button @click="setTemplate('Weekly meal prep for healthy eating, including proteins, vegetables, and whole grains')" class="template-button">
-                  <div class="font-medium text-stone-800">Meal Prep</div>
-                  <div class="text-xs text-stone-500">Healthy weekly prep</div>
-                </button>
-                <button @click="setTemplate('Family dinner ingredients for a week, kid-friendly meals')" class="template-button">
-                  <div class="font-medium text-stone-800">Family Dinners</div>
-                  <div class="text-xs text-stone-500">Kid-friendly meals</div>
-                </button>
               </div>
             </div>
           </div>
@@ -123,9 +95,9 @@
                 </div>
               </div>
               <div class="p-6">
-                <div v-if="isGenerating" class="text-center py-12 text-stone-500">
+                <div v-if="isGenerating || isAddingManually" class="text-center py-12 text-stone-500">
                     <div class="inline-block animate-spin"><Sparkles class="h-8 w-8 text-orange-500" /></div>
-                    <p class="mt-4">AI is thinking...</p>
+                    <p class="mt-4">{{ isAddingManually ? 'Searching for item...' : 'AI is thinking...' }}</p>
                 </div>
                 <div v-else-if="generatedItems.length === 0" class="text-center py-12 text-stone-400">
                   <ShoppingCart class="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -138,18 +110,22 @@
                         <div>
                           <p class="font-semibold text-stone-800">{{ item.name }} (x{{ item.quantity }})</p>
                           <p class="text-xs text-stone-500">{{ item.brand }} • {{ item.size }}</p>
-                          <p class="text-xs text-stone-500">{{ item.fulfillment_type }} • <span :class="item.inventory === 'In Stock' ? 'text-emerald-600' : 'text-amber-600'">{{ item.inventory }}</span></p>
+                          <p class="text-xs text-stone-500">{{ item.fulfillment_type }} • <span :class="item.inventory === 'HIGH' ? 'text-emerald-600' : 'text-amber-600'">{{ item.inventory }}</span></p>
                         </div>
                         <div class="text-right">
-                          <p v-if="item.promo_price" class="font-semibold text-emerald-600">${{ (parseFloat(item.promo_price) || 0).toFixed(2) }}</p>
+                          <p v-if="item.promo_price" class="font-semibold text-emerald-600">
+                            ${{ ((parseFloat(item.promo_price) || 0) * item.quantity).toFixed(2) }}
+                          </p>
                           <p :class="item.promo_price ? 'text-xs text-stone-400 line-through' : 'font-semibold text-stone-800'">
-                            ${{ (parseFloat(item.price) || 0).toFixed(2) }}
+                            ${{ ((parseFloat(item.price) || 0) * item.quantity).toFixed(2) }}
+                          </p>
+                          <p class="text-xs text-stone-500" v-if="item.quantity > 1">
+                            (${{ (parseFloat(item.promo_price) || parseFloat(item.price) || 0).toFixed(2) }} each)
                           </p>
                         </div>
                       </div>
                     </div>
-                    <div class="ml-4 flex flex-col gap-2">
-                      <button @click="swapItem(item.id)" class="text-blue-500 hover:text-blue-700 p-1" title="Swap Item">🔄</button>
+                    <div class="ml-4">
                       <button @click="removeGeneratedItem(item.id)" class="text-red-500 hover:text-red-700 p-1" title="Remove Item">🗑️</button>
                     </div>
                   </div>
@@ -157,6 +133,26 @@
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+    <div v-if="isSelectionModalVisible" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+        <h3 class="text-xl font-bold text-stone-800 mb-4">Select a Product</h3>
+        <div v-if="searchResults.length > 0" class="space-y-3">
+          <div v-for="product in searchResults" :key="product.upc" class="border rounded-md p-3 flex justify-between items-center">
+            <div>
+              <p class="font-semibold text-stone-800">{{ product.name }}</p>
+              <p class="text-sm text-stone-500">{{ product.brand }} • {{ product.size }}</p>
+              <p class="text-sm font-bold text-emerald-700">${{ (parseFloat(product.price) || 0).toFixed(2) }}</p>
+            </div>
+            <button @click="selectProduct(product)" class="px-3 py-1 bg-orange-500 text-white text-sm rounded hover:bg-orange-600">
+              Select
+            </button>
+          </div>
+        </div>
+        <div class="mt-6 text-right">
+          <button @click="closeSelectionModal" class="text-sm text-stone-600 hover:text-stone-800">Cancel</button>
         </div>
       </div>
     </div>
@@ -176,27 +172,21 @@ const base_url = import.meta.env.VITE_API_BASE_URL;
 
 const listName = ref('My Weekly Groceries');
 const isSaving = ref(false);
-const inputMethod = ref('ai');
+const inputMethod = ref('manual');
 const manualItem = ref('');
+const manualItemQuantity = ref(1);
+const isAddingManually = ref(false);
 const aiPrompt = ref('');
 const recipe = ref('');
 const isGenerating = ref(false);
 const generatedItems = ref([]);
+const searchResults = ref([]);
+const isSelectionModalVisible = ref(false);
 
-// --- MOCK PRODUCT DATABASE ---
-// MODIFIED: This is now the single source of truth for all mock products.
-// It includes fulfillment_type and more variety.
 const mockProductDatabase = [
   { name: 'Organic Milk', quantity: 1, price: 4.50, promo_price: null, brand: 'Horizon', size: 'Half Gallon', inventory: 'In Stock', category: 'Dairy', fulfillment_type: 'In-Store Pickup' },
   { name: 'Avocados', quantity: 3, price: 5.00, promo_price: 4.50, brand: 'Calavo', size: '3-pack', inventory: 'In Stock', category: 'Produce', fulfillment_type: 'In-Store Pickup' },
   { name: 'Sourdough Bread', quantity: 1, price: 5.99, promo_price: null, brand: 'Local Bakery', size: '1 loaf', inventory: 'Low Stock', category: 'Bakery', fulfillment_type: 'In-Store Pickup' },
-  { name: 'Ground Turkey', quantity: 1, price: 6.99, promo_price: null, brand: 'Jennie-O', size: '1 lb', inventory: 'In Stock', category: 'Meat', fulfillment_type: 'Delivery' },
-  { name: 'Spinach', quantity: 1, price: 3.50, promo_price: null, brand: 'Organic Girl', size: '5 oz', inventory: 'In Stock', category: 'Produce', fulfillment_type: 'Delivery' },
-  { name: 'Chicken Breast', quantity: 2, price: 10.99, promo_price: null, brand: 'Tyson', size: '1.5 lbs', inventory: 'In Stock', category: 'Meat', fulfillment_type: 'In-Store Pickup' },
-  { name: 'Broccoli', quantity: 1, price: 2.50, promo_price: null, brand: 'Fresh Farms', size: '1 bunch', inventory: 'In Stock', category: 'Produce', fulfillment_type: 'Delivery' },
-  { name: 'Brown Rice', quantity: 1, price: 3.99, promo_price: null, brand: 'Uncle Ben\'s', size: '2 lb bag', inventory: 'In Stock', category: 'Grains', fulfillment_type: 'Shipping' },
-  { name: 'Flour', quantity: 1, price: 3.49, promo_price: null, brand: 'Gold Medal', size: '5 lb bag', inventory: 'In Stock', category: 'Baking', fulfillment_type: 'Shipping' },
-  { name: 'Eggs', quantity: 1, price: 4.99, promo_price: null, brand: 'Eggland\'s Best', size: '1 dozen', inventory: 'In Stock', category: 'Dairy', fulfillment_type: 'In-Store Pickup' },
 ];
 
 const backToDashboard = () => {
@@ -227,28 +217,67 @@ const saveList = async () => {
 };
 
 const getTabClass = (method) => {
-  const base = 'text-xs px-2 py-2 rounded transition-colors';
+  const base = 'text-sm px-3 py-2 rounded transition-colors';
   return inputMethod.value === method ? `${base} bg-white text-stone-800 shadow-sm` : `${base} text-stone-600 hover:text-stone-800`;
 };
 
-const addManualItem = () => {
-  if (!manualItem.value.trim()) return;
-  generatedItems.value.push({
-    id: Date.now(),
-    name: manualItem.value.trim(),
-    quantity: 1, price: 0.00, promo_price: null, brand: 'N/A', size: 'N/A',
-    inventory: 'Unknown', category: 'Uncategorized', fulfillment_type: 'In-Store Pickup',
-  });
-  manualItem.value = '';
+const addManualItem = async () => {
+  if (!manualItem.value.trim() || isAddingManually.value) return;
+  
+  isAddingManually.value = true;
+  const searchTerm = manualItem.value.trim();
+
+  try {
+    const response = await fetch(`${base_url}/api/products/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${userStore.token}`
+      },
+      body: JSON.stringify({ searchTerm: searchTerm })
+    });
+
+    if (!response.ok) {
+      throw new Error('Product search failed on the backend.');
+    }
+    const foundProducts = await response.json();
+
+    if (foundProducts.length > 0) {
+      searchResults.value = foundProducts;
+      isSelectionModalVisible.value = true;
+    } else {
+      alert(`No products found for "${searchTerm}". Please try a different term.`);
+    }
+  } catch (error) {
+    console.error("Error adding manual item:", error);
+    alert("Failed to find the product. Please try again.");
+  } finally {
+    isAddingManually.value = false;
+    manualItem.value = '';
+  }
 };
 
-// MODIFIED: AI functions now pull random items from the mock database
+const selectProduct = (product) => {
+  const productToAdd = {
+    ...product,
+    id: Date.now(),
+    quantity: manualItemQuantity.value || 1
+  };
+  generatedItems.value.push(productToAdd);
+  closeSelectionModal();
+};
+
+const closeSelectionModal = () => {
+  isSelectionModalVisible.value = false;
+  searchResults.value = [];
+  manualItemQuantity.value = 1;
+};
+
 const mockAPICall = (itemCount = 3) => {
   isGenerating.value = true;
   generatedItems.value = [];
   return new Promise(resolve => {
     setTimeout(() => {
-      // Shuffle and pick a few random items
       const shuffled = [...mockProductDatabase].sort(() => 0.5 - Math.random());
       generatedItems.value = shuffled.slice(0, itemCount).map((item, index) => ({ id: Date.now() + index, ...item }));
       isGenerating.value = false;
@@ -258,11 +287,11 @@ const mockAPICall = (itemCount = 3) => {
 };
 
 const generateAIList = () => {
-  mockAPICall(4); // Generate 4 random items
+  mockAPICall(4);
 };
 
 const analyzeRecipe = () => {
-  mockAPICall(3); // Generate 3 random items
+  mockAPICall(3);
 };
 
 const setTemplate = (template) => {
@@ -272,18 +301,6 @@ const setTemplate = (template) => {
 
 const removeGeneratedItem = (id) => {
   generatedItems.value = generatedItems.value.filter(item => item.id !== id);
-};
-
-const swapItem = (itemId) => {
-  const itemIndex = generatedItems.value.findIndex(item => item.id === itemId);
-  if (itemIndex > -1) {
-    let newItem;
-    do {
-      newItem = mockProductDatabase[Math.floor(Math.random() * mockProductDatabase.length)];
-    } while (newItem.name === generatedItems.value[itemIndex].name);
-    
-    generatedItems.value[itemIndex] = { ...newItem, id: itemId };
-  }
 };
 </script>
 
