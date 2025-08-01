@@ -44,7 +44,7 @@ class Product:
             brand=data.get("brand"),
             inventory=data.get("inventory"),
             size=data.get("size"),
-            last_updated=datetime.fromisoformat(data["last_updated"]) if data.get("last_updated") else None,
+            last_updated=datetime.datetime.fromisoformat(data["last_updated"]) if data.get("last_updated") else None,
             location_ID=data.get("location_ID"),
             upc=data.get("upc"),
             category=data.get("category", "Uncategorized")

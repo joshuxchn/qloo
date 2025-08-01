@@ -6,7 +6,7 @@ from .product import Product
 from .user import User
 
 DB_NAME = "grocery_app"
-DB_USER = "samavramov"
+DB_USER = "joshuachen"
 DB_PASSWORD = ""
 DB_HOST = "localhost"
 DB_PORT = "5432"
