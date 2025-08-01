@@ -17,6 +17,7 @@ from Database import db_utils
 from Database.user import User
 from Database.list import GroceryList
 from Database.product import Product
+from kroger import KrogerAPI
 
 # --- User Management Logic ---
 class AuthUserService:
@@ -43,6 +44,7 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY")
 CORS(app, supports_credentials=True)
 oauth = OAuth(app)
 user_service = AuthUserService()
+kroger_api = KrogerAPI()
 
 oauth.register(
     name='google',
@@ -72,6 +74,22 @@ def token_required(f):
     return decorated
 
 # --- API Routes ---
+@app.route('/api/products/search', methods=['POST'])
+@token_required
+def search_kroger_products(current_user):
+    data = request.get_json()
+    search_term = data.get('searchTerm')
+    if not search_term:
+        return jsonify({"error": "searchTerm is required"}), 400
+
+    zip_code = current_user.preferred_location or "98075" 
+    
+    products = kroger_api.productSearch(search_term, limit=3, zip_code=zip_code)
+    
+    product_dicts = [p.to_dict() for p in products]
+    
+    return jsonify(product_dicts)
+
 @app.route('/api/user/profile')
 @token_required
 def get_user_profile(current_user):
@@ -148,14 +166,13 @@ def create_grocery_list(current_user):
     items_data = data.get('items', [])
     if not list_name or not items_data:
         return jsonify({"error": "List name and items are required"}), 400
-    
     products_on_list = []
     for item in items_data:
         product = Product(
             name=item.get('name'),
             price=item.get('price', 0.00),
             promo_price=item.get('promo_price'),
-            fulfillment_type=item.get('fulfillment_type', 'UNKNOWN'), # CORRECTED SPELLING (two 'l's)
+            fulfillment_type=item.get('fulfillment_type', 'UNKNOWN'),
             brand=item.get('brand', 'N/A'),
             inventory=item.get('inventory', 'UNKNOWN'),
             size=item.get('size', 'N/A'),
@@ -166,7 +183,6 @@ def create_grocery_list(current_user):
         )
         quantity = item.get('quantity', 1)
         products_on_list.append((product, quantity))
-    
     new_list = GroceryList(
         list_id=str(uuid.uuid4()),
         user_id=current_user.user_id,
@@ -191,7 +207,7 @@ def update_grocery_list_endpoint(current_user, list_id):
             name=item.get('name'),
             price=item.get('price', 0.00),
             promo_price=item.get('promo_price'),
-            fulfillment_type=item.get('fulfillment_type', 'UNKNOWN'), # CORRECTED SPELLING (two 'l's)
+            fulfillment_type=item.get('fulfillment_type', 'UNKNOWN'),
             brand=item.get('brand', 'N/A'),
             inventory=item.get('inventory', 'UNKNOWN'),
             size=item.get('size', 'N/A'),
@@ -202,7 +218,6 @@ def update_grocery_list_endpoint(current_user, list_id):
         )
         quantity = item.get('quantity', 1)
         products_on_list.append((product, quantity))
-        
     list_to_update = GroceryList(
         list_id=list_id,
         user_id=current_user.user_id,

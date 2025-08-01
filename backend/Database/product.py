@@ -5,7 +5,7 @@ class Product:
         self.name = name
         self.price = price
         self.promo_price = promo_price
-        self.fulfillment_type = fulfillment_type # CORRECTED SPELLING
+        self.fulfillment_type = fulfillment_type
         self.brand = brand
         self.inventory = inventory 
         self.size = size
@@ -15,12 +15,15 @@ class Product:
         self.category = category
 
     def to_dict(self):
-        """Converts Product object to a dictionary for easier storage/transfer."""
+        """
+        Converts Product object to a dictionary for easier storage/transfer.
+        MODIFIED: This now safely handles cases where price might be None.
+        """
         return {
             "name": self.name,
-            "price": float(self.price),
+            "price": float(self.price) if self.price is not None else 0.00,
             "promo_price": float(self.promo_price) if self.promo_price is not None else None,
-            "fulfillment_type": self.fulfillment_type, # CORRECTED SPELLING
+            "fulfillment_type": self.fulfillment_type,
             "brand": self.brand,
             "inventory": self.inventory,
             "size": self.size,
@@ -37,7 +40,7 @@ class Product:
             name=data.get("name"),
             price=data.get("price"),
             promo_price=data.get("promo_price"),
-            fulfillment_type=data.get("fulfillment_type"), # CORRECTED SPELLING
+            fulfillment_type=data.get("fulfillment_type"),
             brand=data.get("brand"),
             inventory=data.get("inventory"),
             size=data.get("size"),

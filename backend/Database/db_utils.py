@@ -6,7 +6,7 @@ from .product import Product
 from .user import User
 
 DB_NAME = "grocery_app"
-DB_USER = "joshuachen"
+DB_USER = "samavramov"
 DB_PASSWORD = ""
 DB_HOST = "localhost"
 DB_PORT = "5432"
@@ -174,7 +174,6 @@ def update_user_details(user_obj):
         conn.close()
 
 def add_grocery_list_to_db(grocery_list_obj):
-    """Saves a new grocery list and its detailed items to the database."""
     conn = get_db_connection()
     if conn is None: return False
     try:
@@ -208,7 +207,6 @@ def add_grocery_list_to_db(grocery_list_obj):
         conn.close()
 
 def get_all_lists_for_user(user_id):
-    """Retrieves all grocery lists and their items for a given user."""
     conn = get_db_connection()
     if conn is None: return []
     
@@ -233,7 +231,6 @@ def get_all_lists_for_user(user_id):
         conn.close()
 
 def remove_grocery_list(list_id, user_id):
-    """Removes a specific grocery list belonging to a specific user."""
     conn = get_db_connection()
     if conn is None: return False
     try:
@@ -254,7 +251,6 @@ def remove_grocery_list(list_id, user_id):
         conn.close()
 
 def update_grocery_list(list_obj, user_id):
-    """Updates a grocery list's items. Ensures user owns the list."""
     conn = get_db_connection()
     if conn is None: return False
     try:
@@ -263,13 +259,22 @@ def update_grocery_list(list_obj, user_id):
             if cur.fetchone() is None:
                 return False
 
+            cur.execute("UPDATE grocery_lists SET name = %s WHERE list_id = %s;", (list_obj.name, list_obj.list_id))
+            
             cur.execute("DELETE FROM grocery_list_items WHERE list_id = %s;", (list_obj.list_id,))
 
             for product, quantity in list_obj.products_on_list:
                 cur.execute("""
-                    INSERT INTO grocery_list_items (list_id, name, category, quantity)
-                    VALUES (%s, %s, %s, %s);
-                """, (list_obj.list_id, product.name, product.category, quantity))
+                    INSERT INTO grocery_list_items (
+                        list_id, name, price, promo_price, fulfillment_type, brand,
+                        inventory, size, last_updated, location_id, upc, quantity, category
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                """, (
+                    list_obj.list_id, product.name, product.price, product.promo_price,
+                    product.fulfillment_type, product.brand, product.inventory, product.size,
+                    product.last_updated, product.location_ID, product.upc, quantity, product.category
+                ))
 
         conn.commit()
         print(f"✅ List {list_obj.list_id} updated successfully.")
