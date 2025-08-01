@@ -136,6 +136,102 @@
             </div>
           </div>
         </div>
+
+        <div v-if="activeTab === 'analytics'" class="space-y-6">
+          <div v-if="userLists.length < 2" class="bg-white border-0 shadow-sm rounded-lg text-center py-12 text-stone-400">
+              <span class="text-stone-400 text-4xl block mb-3 opacity-50">📊</span>
+              <p>Create at least two lists to start seeing your spending insights.</p>
+          </div>
+          <div v-else>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="bg-white p-4 rounded-lg shadow-sm">
+                <p class="text-xs text-stone-500">Avg. List Price</p>
+                <p class="text-2xl font-bold text-stone-800">${{ averageListPrice.toFixed(2) }}</p>
+              </div>
+              <div class="bg-white p-4 rounded-lg shadow-sm">
+                <p class="text-xs text-stone-500">Spending This Month</p>
+                <p class="text-2xl font-bold text-stone-800">${{ spendingThisMonth.toFixed(2) }}</p>
+              </div>
+              <div class="bg-white p-4 rounded-lg shadow-sm">
+                <p class="text-xs text-stone-500">Total Spent</p>
+                <p class="text-2xl font-bold text-stone-800">${{ totalSpentAllTime.toFixed(2) }}</p>
+              </div>
+              <div class="bg-white p-4 rounded-lg shadow-sm">
+                <p class="text-xs text-stone-500">Avg. Item Price</p>
+                <p class="text-2xl font-bold text-stone-800">${{ averageItemPrice.toFixed(2) }}</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+              <div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-sm">
+                  <h3 class="font-bold text-lg text-stone-800 mb-4">Budget Analysis</h3>
+                  <div class="space-y-2">
+                    <div class="flex justify-between text-sm">
+                      <span class="text-stone-600">Your Weekly Budget</span>
+                      <span class="font-medium">${{ (currentUser.budget || 0).toFixed(2) }}</span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                      <span class="text-stone-600">Your Average List</span>
+                      <span class="font-medium">${{ averageListPrice.toFixed(2) }}</span>
+                    </div>
+                    <div class="w-full bg-stone-200 rounded-full h-2.5 mt-2">
+                      <div class="bg-orange-500 h-2.5 rounded-full" :style="{ width: `${Math.min((averageListPrice / (currentUser.budget || 1)) * 100, 100)}%` }"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-sm">
+                  <h3 class="font-bold text-lg text-stone-800 mb-4">Habits & Records</h3>
+                  <ul class="space-y-3 text-sm">
+                    <li class="flex justify-between">
+                      <span class="text-stone-600">Preferred Frequency</span>
+                      <span class="font-medium bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full text-xs">{{ currentUser.shoppingFrequency }}</span>
+                    </li>
+                    <li class="flex justify-between">
+                      <span class="text-stone-600">Most Used Method</span>
+                      <span class="font-medium">{{ mostUsedFulfillment }}</span>
+                    </li>
+                    <li v-if="largestList" class="flex justify-between">
+                      <span class="text-stone-600">Largest List</span>
+                      <span class="font-medium truncate" :title="largestList.name">{{ largestList.name }} ({{ largestList.items.length }} items)</span>
+                    </li>
+                    <li v-if="mostExpensiveList" class="flex justify-between">
+                      <span class="text-stone-600">Most Expensive List</span>
+                      <span class="font-medium truncate" :title="mostExpensiveList.name">{{ mostExpensiveList.name }} (${{ calculateListTotal(mostExpensiveList).toFixed(2) }})</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="bg-white p-6 rounded-lg shadow-sm">
+                 <h3 class="font-bold text-lg text-stone-800 mb-4">Your Favorites</h3>
+                 <div class="space-y-4">
+                   <div>
+                     <h4 class="font-medium text-sm text-stone-700 mb-2">Top 5 Items</h4>
+                     <ul v-if="topItems.length > 0" class="space-y-2">
+                       <li v-for="item in topItems" :key="item.name" class="flex justify-between text-xs">
+                         <span class="text-stone-600 truncate" :title="item.name">{{ item.name }}</span>
+                         <span class="font-medium text-stone-500">{{ item.count }}x</span>
+                       </li>
+                     </ul>
+                      <p v-else class="text-xs text-stone-500">Not enough data yet.</p>
+                   </div>
+                   <div class="pt-4 border-t">
+                     <h4 class="font-medium text-sm text-stone-700 mb-2">Top 5 Brands</h4>
+                     <ul v-if="topBrands.length > 0" class="space-y-2">
+                       <li v-for="brand in topBrands" :key="brand.name" class="flex justify-between text-xs">
+                         <span class="text-stone-600 truncate" :title="brand.name">{{ brand.name }}</span>
+                         <span class="font-medium text-stone-500">{{ brand.count }}x</span>
+                       </li>
+                     </ul>
+                     <p v-else class="text-xs text-stone-500">Not enough data yet.</p>
+                   </div>
+                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -193,6 +289,71 @@ export default {
       if (!this.activeList) return 0;
       return this.calculateListTotal(this.activeList);
     },
+    allItems() {
+      return this.userLists.flatMap(list => list.items);
+    },
+    totalSpentAllTime() {
+      return this.userLists.reduce((total, list) => total + this.calculateListTotal(list), 0);
+    },
+    averageListPrice() {
+      if (this.userLists.length === 0) return 0;
+      return this.totalSpentAllTime / this.userLists.length;
+    },
+    averageItemPrice() {
+      if (this.allItems.length === 0) return 0;
+      return this.totalSpentAllTime / this.allItems.length;
+    },
+    spendingThisMonth() {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      const thisMonthLists = this.userLists.filter(list => {
+        const listDate = new Date(list.timestamp);
+        return listDate.getMonth() === currentMonth && listDate.getFullYear() === currentYear;
+      });
+      return thisMonthLists.reduce((total, list) => total + this.calculateListTotal(list), 0);
+    },
+    largestList() {
+      if (this.userLists.length === 0) return null;
+      return [...this.userLists].sort((a, b) => b.items.length - a.items.length)[0];
+    },
+    mostExpensiveList() {
+      if (this.userLists.length === 0) return null;
+      return [...this.userLists].sort((a, b) => this.calculateListTotal(b) - this.calculateListTotal(a))[0];
+    },
+    mostUsedFulfillment() {
+      if (this.allItems.length === 0) return 'N/A';
+      const counts = {};
+      this.allItems.forEach(item => {
+        const type = item.fulfillment_type || 'Unknown';
+        counts[type] = (counts[type] || 0) + 1;
+      });
+      return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+    },
+    topBrands() {
+      const brandCounts = {};
+      this.allItems.forEach(item => {
+        if (item.brand && item.brand !== 'N/A') {
+          brandCounts[item.brand] = (brandCounts[item.brand] || 0) + 1;
+        }
+      });
+      return Object.entries(brandCounts)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+    },
+    topItems() {
+       const itemCounts = {};
+      this.allItems.forEach(item => {
+        if (item.name) {
+          itemCounts[item.name] = (itemCounts[item.name] || 0) + 1;
+        }
+      });
+      return Object.entries(itemCounts)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+    }
   },
   methods: {
     async fetchUserLists() {
@@ -245,10 +406,8 @@ export default {
     },
     async addItemToList() {
       if (!this.newItemName.trim() || this.isAddingItem) return;
-      
       this.isAddingItem = true;
       const searchTerm = this.newItemName.trim();
-
       try {
         const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/products/search`, {
           method: 'POST',
@@ -258,10 +417,8 @@ export default {
           },
           body: JSON.stringify({ searchTerm: searchTerm })
         });
-
         if (!response.ok) throw new Error('Product search failed.');
         const foundProducts = await response.json();
-
         if (foundProducts.length > 0) {
           this.searchResults = foundProducts;
           this.isSelectionModalVisible = true;
@@ -281,7 +438,7 @@ export default {
         alert("Failed to find product. Please try again.");
       } finally {
         this.isAddingItem = false;
-        this.newItemName = '';
+        // Do not clear newItemName here, wait for modal
       }
     },
     selectProduct(product) {
@@ -298,6 +455,7 @@ export default {
       this.isSelectionModalVisible = false;
       this.searchResults = [];
       this.newItemQuantity = 1;
+      this.newItemName = ''; // Clear input after selection/cancellation
     },
     removeItemFromList(list, itemToRemove) {
       list.items = list.items.filter(item => 
@@ -317,7 +475,7 @@ export default {
       this.$router.push('/login');
     },
     buildList() {
-      this.$router.push('/list');
+      this.$router.push('/list-builder');
     },
     redirectToProfile() {
       this.$router.push('/profile');
