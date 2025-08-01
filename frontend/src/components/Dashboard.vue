@@ -134,13 +134,32 @@
                 </div>
               </div>
             </div>
-          </div>
         </div>
+      </div>
 
-        <div v-if="activeTab === 'analytics'" class="space-y-6">
-          <div v-if="userLists.length < 2" class="bg-white border-0 shadow-sm rounded-lg text-center py-12 text-stone-400">
-              <span class="text-stone-400 text-4xl block mb-3 opacity-50">📊</span>
-              <p>Create at least two lists to start seeing your spending insights.</p>
+      <div v-if="activeTab === 'recommendations'" class="bg-white border-0 shadow-sm rounded-lg">
+        <div class="p-6">
+          <p v-if="suggestedProducts.length === 0" class="text-center text-stone-500 py-12">No suggestions available.</p>
+          <ul v-else class="space-y-3">
+            <li v-for="(product, index) in suggestedProducts" :key="product.upc || index" class="flex justify-between items-center text-sm text-stone-700 bg-white p-3 rounded-md shadow-sm">
+              <div>
+                <p class="font-semibold text-stone-800">{{ product.name }}</p>
+                <p class="text-xs text-stone-500">{{ product.brand }} • {{ product.size }}</p>
+                <p class="text-xs text-stone-500">{{ product.fulfillment_type }} • <span :class="product.inventory === 'HIGH' ? 'text-emerald-600' : 'text-amber-600'">{{ product.inventory }}</span></p>
+              </div>
+              <div class="text-right">
+                <p class="font-semibold text-stone-800">${{ (parseFloat(product.price) || 0).toFixed(2) }}</p>
+                <p v-if="product.promo_price" class="text-xs text-emerald-700">Sale: ${{ parseFloat(product.promo_price).toFixed(2) }}</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div v-if="activeTab === 'analytics'" class="space-y-6">
+        <div v-if="userLists.length < 2" class="bg-white border-0 shadow-sm rounded-lg text-center py-12 text-stone-400">
+            <span class="text-stone-400 text-4xl block mb-3 opacity-50">📊</span>
+            <p>Create at least two lists to start seeing your spending insights.</p>
           </div>
           <div v-else>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -353,6 +372,19 @@ export default {
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
+    },
+    suggestedProducts() {
+      const productMap = {};
+      this.allItems.forEach(item => {
+        const key = item.upc || item.name;
+        if (!productMap[key]) {
+          productMap[key] = { ...item, count: 0 };
+        }
+        productMap[key].count += item.quantity || 1;
+      });
+      return Object.values(productMap)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10);
     }
   },
   methods: {
